@@ -9,7 +9,7 @@ export const PARTICIPANT_KINDS: ParticipantKind[] = [
   "entity", "database", "collections", "queue",
 ];
 
-export interface Participant { alias: string; name: string; kind: ParticipantKind; }
+export interface Participant { alias: string; name: string; kind: ParticipantKind; color?: string | null; }
 
 // ─── Arrow / Note ─────────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ export type Token =
   | { type: "GROUP"; label: string }
   | { type: "LOOP"; label: string }
   | { type: "BOX"; title: string | null; color: string | null }
-  | { type: "DECLARATION"; kind: ParticipantKind; name: string; alias: string }
+  | { type: "DECLARATION"; kind: ParticipantKind; name: string; alias: string; color: string | null }
   | { type: "DIVIDER"; label: string }
   | { type: "MESSAGE"; from: string; arrow: ArrowType; to: string; label: string }
   | { type: "TEXT_LINE"; text: string }

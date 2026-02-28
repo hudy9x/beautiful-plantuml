@@ -23,11 +23,21 @@ function SequenceDiagramInner({ ast }: { ast: DiagramAST }) {
   const titleBarH = hasBoxes ? Math.max(...boxes.map(boxDepth)) * BOX_TITLE_ROW_H : 0;
   const partBarH = titleBarH + PART_BAR_BASE_H;
 
-  const ParticipantRow = () => (
+  const ParticipantRowTop = () => (
     <div style={{ position: "relative", height: PART_BAR_BASE_H, zIndex: 5, width: "100%" }}>
       {participants.map((p, i) => (
-        <div key={p.alias} style={{ position: "absolute", left: `${cx(i)}%`, transform: "translateX(-50%)", bottom: 2, zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <ParticipantShape kind={p.kind} name={p.name} />
+        <div key={p.alias} style={{ position: "absolute", left: `${cx(i)}%`, transform: "translateX(-50%)", bottom: 0, zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <ParticipantShape kind={p.kind} name={p.name} bg={p.color} />
+        </div>
+      ))}
+    </div>
+  );
+
+  const ParticipantRowBottom = () => (
+    <div style={{ position: "relative", height: PART_BAR_BASE_H, zIndex: 5, width: "100%" }}>
+      {participants.map((p, i) => (
+        <div key={p.alias} style={{ position: "absolute", left: `${cx(i)}%`, transform: "translateX(-50%)", top: 0, zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <ParticipantShape kind={p.kind} name={p.name} bg={p.color} />
         </div>
       ))}
     </div>
@@ -40,9 +50,9 @@ function SequenceDiagramInner({ ast }: { ast: DiagramAST }) {
     <div style={{ fontFamily: "monospace", color: C.text, position: "relative" }}>
       {hasBoxes && boxes.map((box, bi) => <BoxBand key={bi} box={box} colW={colW} aliasToIdx={aliasToIdx} nestDepth={0} />)}
       <div style={{ position: "relative", zIndex: 5 }}>
-        <div style={{ height: partBarH, position: "relative", display: "flex", alignItems: "flex-end" }}><ParticipantRow /></div>
+        <div style={{ height: partBarH, position: "relative", display: "flex", alignItems: "flex-end" }}><ParticipantRowTop /></div>
         <div style={{ position: "relative" }}>{renderStmts(statements, 0)}</div>
-        <div style={{ height: partBarH, position: "relative", display: "flex", alignItems: "flex-start" }}><ParticipantRow /></div>
+        <div style={{ height: partBarH, position: "relative", display: "flex", alignItems: "flex-start" }}><ParticipantRowBottom /></div>
       </div>
     </div>
   );

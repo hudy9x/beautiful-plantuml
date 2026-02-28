@@ -13,9 +13,9 @@ export function parse(input: string): DiagramAST {
   const participantOrder: Participant[] = [];
   const participantSet = new Set<string>();
 
-  function registerParticipant(alias: string, name: string, kind: ParticipantKind) {
+  function registerParticipant(alias: string, name: string, kind: ParticipantKind, color?: string | null) {
     if (participantSet.has(alias)) return;
-    const p: Participant = { alias, name, kind };
+    const p: Participant = { alias, name, kind, color: color ?? null };
     participantSet.add(alias); participantOrder.push(p); declMap[alias] = p;
   }
   function ensureParticipant(alias: string) { registerParticipant(alias, alias, "participant"); }
@@ -39,7 +39,7 @@ export function parse(input: string): DiagramAST {
       if (STOP.has(tok.type)) break;
       switch (tok.type) {
         case "BOX": { pos++; stmts.push(parseBox(tok.title, tok.color, ref)); break; }
-        case "DECLARATION": { registerParticipant(tok.alias, tok.name, tok.kind); pos++; break; }
+        case "DECLARATION": { registerParticipant(tok.alias, tok.name, tok.kind, tok.color); pos++; break; }
         case "NOTE_INLINE": { pos++; stmts.push({ type: "NOTE", position: tok.position, p1: tok.p1, p2: tok.p2, color: tok.color, lines: [tok.text] } as NoteNode); break; }
         case "NOTE_START": { pos++; stmts.push({ type: "NOTE", position: tok.position, p1: tok.p1, p2: tok.p2, color: tok.color, lines: collectNoteLines() } as NoteNode); break; }
         case "NOTE_BARE_INLINE": { pos++; const p1b = ref.current ? (tok.position === "left" ? ref.current.leftAlias : ref.current.rightAlias) : null; stmts.push({ type: "NOTE", position: tok.position, p1: p1b, p2: null, color: tok.color, lines: [tok.text] } as NoteNode); break; }
@@ -88,7 +88,7 @@ export function parse(input: string): DiagramAST {
       const tok = tokens[pos];
       if (tok.type === "END_BOX" || tok.type === "END") { pos++; break; }
       if (tok.type === "BOX") { pos++; children.push(parseBox(tok.title, tok.color, ref)); }
-      else if (tok.type === "DECLARATION") { registerParticipant(tok.alias, tok.name, tok.kind); direct.push(tok.alias); pos++; }
+      else if (tok.type === "DECLARATION") { registerParticipant(tok.alias, tok.name, tok.kind, tok.color); direct.push(tok.alias); pos++; }
       else { pos++; }
     }
     return { type: "BOX_DECL", title, color, directAliases: direct, children, allAliases: [...direct, ...children.flatMap(c => c.allAliases)] };

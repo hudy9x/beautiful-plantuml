@@ -14,8 +14,12 @@ export function tokenizeLine(line: string): Token | null {
   if (boxM) return { type: "BOX", title: boxM[1] ?? null, color: boxM[2] ?? boxM[3] ?? null };
 
   for (const kind of PARTICIPANT_KINDS) {
-    const m = t.match(new RegExp(`^${kind}\\s+(\\S+)(?:\\s+as\\s+(\\S+))?$`, "i"));
-    if (m) return { type: "DECLARATION", kind: kind as ParticipantKind, name: m[1], alias: m[2] ?? m[1] };
+    // quoted name:  actor "Display Name" as alias #color
+    const qm = t.match(new RegExp(`^${kind}\\s+"([^"]+)"(?:\\s+as\\s+(\\S+))?(?:\\s+(#\\S+))?$`, "i"));
+    if (qm) return { type: "DECLARATION", kind: kind as ParticipantKind, name: qm[1], alias: qm[2] ?? qm[1], color: qm[3] ?? null };
+    // unquoted name: actor Name as alias #color  (non-greedy so #color isn't eaten as part of name)
+    const m = t.match(new RegExp(`^${kind}\\s+(\\S+?)(?:\\s+as\\s+(\\S+))?(?:\\s+(#\\S+))?$`, "i"));
+    if (m && !m[1].startsWith('"')) return { type: "DECLARATION", kind: kind as ParticipantKind, name: m[1], alias: m[2] ?? m[1], color: m[3] ?? null };
   }
 
   const divM = t.match(/^==+\s*(.+?)\s*==+$/);
