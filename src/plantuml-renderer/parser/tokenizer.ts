@@ -10,8 +10,17 @@ export function tokenizeLine(line: string): Token | null {
   if (t === "end box") return { type: "END_BOX" };
   if (t === "end") return { type: "END_BLOCK" };
 
-  const boxM = t.match(/^box(?:\s+"([^"]*)")?(?:\s+(#\S+))?(?:\s+(#\S+))?$/i);
-  if (boxM) return { type: "BOX", title: boxM[1] ?? null, color: boxM[2] ?? boxM[3] ?? null };
+  if (/^box(\s|$)/i.test(t)) {
+    const rest = t.slice(3).trim();                            // everything after "box"
+    const colorM = rest.match(/\s+(#\S+)$/);                  // trailing #color
+    const color = colorM ? colorM[1] : null;
+    const titleRaw = (color ? rest.slice(0, rest.length - colorM![0].length) : rest).trim();
+    // strip surrounding quotes if present
+    const title = titleRaw.startsWith('"') && titleRaw.endsWith('"')
+      ? titleRaw.slice(1, -1)
+      : titleRaw || null;
+    return { type: "BOX", title, color };
+  }
 
   for (const kind of PARTICIPANT_KINDS) {
     // quoted name:  actor "Display Name" as alias #color
