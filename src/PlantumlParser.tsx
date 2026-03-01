@@ -265,7 +265,7 @@ const THEMES = {
     "--c-loopBorder": "#3d9e6e", "--c-loopLabel": "#6ee7b7", "--c-loopBg": "rgba(52,211,153,0.06)",
     "--c-noteBg": "#fefce8", "--c-noteBorder": "#b5a642", "--c-noteText": "#2d2a00",
     "--c-dividerLine": "#58a6ff", "--c-dividerText": "#58a6ff",
-    "--c-lifeline": "#7ca8c4",
+    "--c-lifeline": "#295875ff",
   },
   light: {
     "--c-bg": "#ffffff",
@@ -275,7 +275,7 @@ const THEMES = {
     "--c-text": "#24292f",
     "--c-muted": "#57606a",
     "--c-arrow": "#24292f",
-    "--c-altBorder": "#d0d7de", "--c-altLabel": "#9a6700", "--c-altBg": "rgba(0,0,0,0.02)",
+    "--c-altBorder": "#d0d7de", "--c-altLabel": "#9e740d", "--c-altBg": "rgba(0,0,0,0.02)",
     "--c-groupBorder": "#54aeff", "--c-groupLabel": "#0969da", "--c-groupBg": "rgba(9,105,218,0.04)",
     "--c-loopBorder": "#2da44e", "--c-loopLabel": "#1a7f37", "--c-loopBg": "rgba(45,164,78,0.04)",
     "--c-noteBg": "#fff8c5", "--c-noteBorder": "#d4a72c", "--c-noteText": "#24292f",
@@ -826,13 +826,25 @@ function BlockHeader({ x, y, w, keyword, condition, stroke, headerFill, labelCol
     <g className={`block-header block-header-${keyword}`}>
       {/* Solid background covers lifeline under header */}
       <rect x={x} y={y} width={w} height={BLOCK_HDR_H}
-        fill={C.surface} stroke="none" />
-      {/* Colored header */}
+        fill={C.surface} stroke="none" rx={3} />
+      {/* Colored header background (no stroke yet so it sits underneath) */}
       <rect x={x} y={y} width={w} height={BLOCK_HDR_H}
-        fill={headerFill} stroke={stroke} strokeWidth={1.5} rx={3} />
-      {/* Keyword tag */}
-      <rect x={x} y={y} width={tagW} height={BLOCK_HDR_H - 1} rx={3}
-        fill={C.surface} stroke={stroke} strokeWidth={1} className="block-keyword-tag" />
+        fill={headerFill} stroke="none" rx={3} />
+
+      {/* Keyword tag body (solid background to mask the colored header underneath) */}
+      <rect x={x} y={y} width={tagW} height={BLOCK_HDR_H} rx={3}
+        fill={C.surface} stroke="none" className="block-keyword-tag" />
+      {/* Ensure square right corners on the tag background */}
+      <rect x={x + 10} y={y} width={tagW - 10} height={BLOCK_HDR_H}
+        fill={C.surface} stroke="none" />
+
+      {/* The right vertical separator connecting top to bottom of the header */}
+      <line x1={x + tagW} y1={y} x2={x + tagW} y2={y + BLOCK_HDR_H}
+        stroke={stroke} strokeWidth={1.5} />
+
+      {/* Outer border for the entire header (drawn last so its stroke remains perfectly intact) */}
+      <rect x={x} y={y} width={w} height={BLOCK_HDR_H}
+        fill="none" stroke={stroke} strokeWidth={1.5} rx={3} />
       <text x={x + tagW / 2} y={y + BLOCK_HDR_H / 2 + 4} textAnchor="middle"
         fontSize={11} fontWeight="bold" fontFamily="monospace"
         fill={labelColor} className="block-keyword">{keyword}</text>
@@ -1326,7 +1338,7 @@ function SequenceDiagram({ ast }: { ast: DiagramAST }) {
       <g className="lifelines">
         {lifelineSegs.map((seg, i) => (
           <line key={i} x1={seg.x} y1={seg.y1} x2={seg.x} y2={seg.y2}
-            stroke={C.lifeline} strokeWidth={2} strokeDasharray="6,4"
+            stroke={C.lifeline} strokeWidth={1} strokeDasharray="6,4"
             className="lifeline" />
         ))}
       </g>
