@@ -242,20 +242,53 @@ function parse(input: string): DiagramAST {
 // theme/index.ts
 // ─────────────────────────────────────────────────────────────────────────────
 
+const THEMES = {
+  dark: {
+    "--c-bg": "#0d1117",
+    "--c-surface": "#161b22",
+    "--c-border": "#30363d",
+    "--c-accent": "#79c0ff",
+    "--c-text": "#cdd9e5",
+    "--c-muted": "#768390",
+    "--c-arrow": "#c3c3c3",
+    "--c-altBorder": "#444c56", "--c-altLabel": "#e3b341", "--c-altBg": "rgba(255,255,255,0.04)",
+    "--c-groupBorder": "#6e7fd2", "--c-groupLabel": "#a5b4fc", "--c-groupBg": "rgba(99,102,241,0.08)",
+    "--c-loopBorder": "#3d9e6e", "--c-loopLabel": "#6ee7b7", "--c-loopBg": "rgba(52,211,153,0.06)",
+    "--c-noteBg": "#fefce8", "--c-noteBorder": "#b5a642", "--c-noteText": "#2d2a00",
+    "--c-dividerLine": "#58a6ff", "--c-dividerText": "#58a6ff",
+    "--c-lifeline": "#7ca8c4",
+  },
+  light: {
+    "--c-bg": "#ffffff",
+    "--c-surface": "#f6f8fa",
+    "--c-border": "#d0d7de",
+    "--c-accent": "#0969da",
+    "--c-text": "#24292f",
+    "--c-muted": "#57606a",
+    "--c-arrow": "#24292f",
+    "--c-altBorder": "#d0d7de", "--c-altLabel": "#9a6700", "--c-altBg": "rgba(0,0,0,0.02)",
+    "--c-groupBorder": "#54aeff", "--c-groupLabel": "#0969da", "--c-groupBg": "rgba(9,105,218,0.04)",
+    "--c-loopBorder": "#2da44e", "--c-loopLabel": "#1a7f37", "--c-loopBg": "rgba(45,164,78,0.04)",
+    "--c-noteBg": "#fff8c5", "--c-noteBorder": "#d4a72c", "--c-noteText": "#24292f",
+    "--c-dividerLine": "#0969da", "--c-dividerText": "#0969da",
+    "--c-lifeline": "#8c959f",
+  }
+};
+
 const C = {
-  bg: "#0d1117",
-  surface: "#161b22",
-  border: "#30363d",
-  accent: "#79c0ff",
-  text: "#cdd9e5",
-  muted: "#768390",
-  arrow: "#c3c3c3",
-  altBorder: "#444c56", altLabel: "#e3b341", altBg: "rgba(255,255,255,0.04)",
-  groupBorder: "#6e7fd2", groupLabel: "#a5b4fc", groupBg: "rgba(99,102,241,0.08)",
-  loopBorder: "#3d9e6e", loopLabel: "#6ee7b7", loopBg: "rgba(52,211,153,0.06)",
-  noteBg: "#fefce8", noteBorder: "#b5a642", noteText: "#2d2a00",
-  dividerLine: "#58a6ff", dividerText: "#58a6ff",
-  lifeline: "#7ca8c4",
+  bg: "var(--c-bg)",
+  surface: "var(--c-surface)",
+  border: "var(--c-border)",
+  accent: "var(--c-accent)",
+  text: "var(--c-text)",
+  muted: "var(--c-muted)",
+  arrow: "var(--c-arrow)",
+  altBorder: "var(--c-altBorder)", altLabel: "var(--c-altLabel)", altBg: "var(--c-altBg)",
+  groupBorder: "var(--c-groupBorder)", groupLabel: "var(--c-groupLabel)", groupBg: "var(--c-groupBg)",
+  loopBorder: "var(--c-loopBorder)", loopLabel: "var(--c-loopLabel)", loopBg: "var(--c-loopBg)",
+  noteBg: "var(--c-noteBg)", noteBorder: "var(--c-noteBorder)", noteText: "var(--c-noteText)",
+  dividerLine: "var(--c-dividerLine)", dividerText: "var(--c-dividerText)",
+  lifeline: "var(--c-lifeline)",
 } as const;
 
 // Layout constants
@@ -1315,6 +1348,7 @@ export default function App() {
   const [ast, setAst] = useState<DiagramAST | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"diagram" | "ast">("diagram");
+  const [diagramTheme, setDiagramTheme] = useState<"dark" | "light">("dark");
 
   useEffect(() => {
     try { setAst(parse(input)); setError(null); }
@@ -1323,6 +1357,7 @@ export default function App() {
 
   return (
     <div style={{
+      ...(THEMES.dark as React.CSSProperties),
       minHeight: "100vh", background: C.bg, color: C.text,
       fontFamily: "'JetBrains Mono','Fira Code',monospace", padding: 20, boxSizing: "border-box"
     }}>
@@ -1394,20 +1429,34 @@ export default function App() {
         </div>
 
         <div>
-          <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-            {(["diagram", "ast"] as const).map(t => (
-              <button key={t} onClick={() => setTab(t)}
-                style={{
-                  background: tab === t ? C.accent : C.surface, color: tab === t ? C.bg : C.muted,
-                  border: `1px solid ${tab === t ? C.accent : C.border}`, borderRadius: 6,
-                  padding: "4px 14px", fontSize: 10, cursor: "pointer",
-                  fontWeight: tab === t ? "bold" : "normal",
-                  textTransform: "uppercase", letterSpacing: 1, fontFamily: "inherit"
-                }}>{t}</button>
-            ))}
+          <div style={{ display: "flex", gap: 4, marginBottom: 10, justifyContent: "space-between" }}>
+            <div style={{ display: "flex", gap: 4 }}>
+              {(["diagram", "ast"] as const).map(t => (
+                <button key={t} onClick={() => setTab(t)}
+                  style={{
+                    background: tab === t ? C.accent : C.surface, color: tab === t ? C.bg : C.muted,
+                    border: `1px solid ${tab === t ? C.accent : C.border}`, borderRadius: 6,
+                    padding: "4px 14px", fontSize: 10, cursor: "pointer",
+                    fontWeight: tab === t ? "bold" : "normal",
+                    textTransform: "uppercase", letterSpacing: 1, fontFamily: "inherit"
+                  }}>{t}</button>
+              ))}
+            </div>
+
+            <button onClick={() => setDiagramTheme(diagramTheme === "dark" ? "light" : "dark")}
+              style={{
+                background: C.surface, color: C.text,
+                border: `1px solid ${C.border}`, borderRadius: 6,
+                padding: "4px 14px", fontSize: 10, cursor: "pointer",
+                textTransform: "uppercase", letterSpacing: 1, fontFamily: "inherit",
+                fontWeight: "bold"
+              }}>
+              {diagramTheme === "dark" ? "🌙 Dark" : "☀️ Light"}
+            </button>
           </div>
           <div style={{
-            background: C.surface, border: `1px solid ${C.border}`,
+            ...(THEMES[diagramTheme] as React.CSSProperties),
+            background: C.bg, border: `1px solid ${C.border}`, color: C.text,
             borderRadius: 8, padding: 16, minHeight: 500, overflowX: "auto"
           }}>
             {ast && tab === "diagram" && <SequenceDiagram ast={ast} />}
