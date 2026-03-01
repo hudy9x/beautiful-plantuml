@@ -497,7 +497,7 @@ function shapeCollections(name: string, s: string) {
 function shapeQueue(name: string, s: string) {
   return <>
     <rect x={-16} y={-10} width={32} height={20} fill={C.surface} stroke={s} strokeWidth={1.5} rx={10} className="queue-body" />
-    <ellipse cx={-16} cy={0} rx={4} ry={10} fill={C.surface} stroke={s} strokeWidth={1.5} className="queue-left-cap" />
+    <ellipse cx={-11} cy={0} rx={7} ry={10} fill={C.surface} stroke={s} strokeWidth={1.5} className="queue-left-cap" />
     <text x={0} y={26} textAnchor="middle" fontSize={10} fontWeight="bold"
       fill={s} className="participant-label">{name}</text>
   </>;
