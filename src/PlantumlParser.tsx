@@ -1318,7 +1318,7 @@ function SequenceDiagram({ ast }: { ast: DiagramAST }) {
       <g className="participants-header">
         {participants.map((p, i) => (
           <ParticipantShape key={p.alias} kind={p.kind} name={p.name}
-            cx={colCenters[i]} cy={headerPartCY} stroke={C.accent} stereoType={p.stereoType} fill={p.color} />
+            cx={shiftedCenters[i]} cy={headerPartCY} stroke={C.accent} stereoType={p.stereoType} fill={p.color} />
         ))}
       </g>
 
@@ -1331,7 +1331,7 @@ function SequenceDiagram({ ast }: { ast: DiagramAST }) {
       <g className="participants-footer">
         {participants.map((p, i) => (
           <ParticipantShape key={p.alias} kind={p.kind} name={p.name}
-            cx={colCenters[i]} cy={footerY + PART_H / 2} stroke={C.accent} stereoType={p.stereoType} fill={p.color} />
+            cx={shiftedCenters[i]} cy={footerY + PART_H / 2} stroke={C.accent} stereoType={p.stereoType} fill={p.color} />
         ))}
       </g>
     </svg>
