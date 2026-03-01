@@ -1236,11 +1236,28 @@ function SequenceDiagram({ ast }: { ast: DiagramAST }) {
   function calcLeftOverflow(stmts: StatementNode[]): number {
     let overflow = 0;
     for (const s of stmts) {
-      if (s.type === "NOTE" && (s.position === "left") && s.p1) {
-        const idx = aliasIdx[s.p1] ?? 0;
-        const cx = colCenters[idx];
+      if (s.type === "NOTE" && s.position) {
         const nw = noteW(s.lines);
-        const noteLeft = cx - nw - 8;   // leftmost x of the note box
+        let noteLeft = 0;
+        const idx1 = s.p1 ? aliasIdx[s.p1] ?? -1 : -1;
+        const idx2 = s.p2 ? aliasIdx[s.p2] ?? -1 : -1;
+        const cx1 = idx1 >= 0 ? colCenters[idx1] : 0;
+        const cx2 = idx2 >= 0 ? colCenters[idx2] : colCenters[N - 1] + edgeR;
+
+        if (s.position === "left" && idx1 >= 0) {
+          noteLeft = cx1 - nw - 8;
+        } else if (s.position === "over") {
+          if (idx2 >= 0 && idx1 >= 0) {
+            const minX = Math.min(cx1, cx2);
+            const maxX = Math.max(cx1, cx2);
+            noteLeft = minX + (maxX - minX) / 2 - nw / 2;
+          } else if (idx1 >= 0) {
+            noteLeft = cx1 - nw / 2;
+          }
+        } else if (s.position === "across") {
+          noteLeft = (colCenters[N - 1] + edgeR) / 2 - nw / 2;
+        }
+
         if (noteLeft < 0) overflow = Math.max(overflow, -noteLeft + 8);
       }
       if (s.type === "ALT_BLOCK") s.branches.forEach(b => { overflow = Math.max(overflow, calcLeftOverflow(b.statements)); });
