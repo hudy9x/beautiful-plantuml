@@ -47,7 +47,7 @@ interface GroupBlockNode { type: "GROUP_BLOCK"; label: string; statements: State
 interface LoopBlockNode { type: "LOOP_BLOCK"; label: string; statements: StatementNode[]; }
 interface BoxDeclNode { type: "BOX_DECL"; title: string | null; color: string | null; directAliases: string[]; children: BoxDeclNode[]; allAliases: string[]; }
 type StatementNode = MessageNode | NoteNode | DividerNode | AltBlockNode | GroupBlockNode | LoopBlockNode | BoxDeclNode;
-interface DiagramAST { autonumber: boolean; participants: Participant[]; declMap: Record<string, Participant>; statements: StatementNode[]; boxes: BoxDeclNode[]; }
+interface DiagramAST { autonumber: boolean; participants: Participant[]; declMap: Record<string, Participant>; statements: StatementNode[]; boxes: BoxDeclNode[]; errors: { line: number; text: string }[]; }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // parser/tokenizer.ts
@@ -116,12 +116,17 @@ function tokenizeLine(line: string): Token | null {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function parse(input: string): DiagramAST {
-  const tokens: Token[] = input.split("\n").map(tokenizeLine).filter((t): t is Token => t !== null);
+  const tokens: (Token & { lineNo: number; raw: string })[] = [];
+  input.split("\n").forEach((line, i) => {
+    const t = tokenizeLine(line);
+    if (t !== null) tokens.push({ ...t, lineNo: i + 1, raw: line });
+  });
   let pos = 0, msgIdx = 0;
   const hasAutonumber = tokens.some(t => t.type === "AUTONUMBER");
   const declMap: Record<string, Participant> = {};
   const participantOrder: Participant[] = [];
   const participantSet = new Set<string>();
+  const errors: { line: number; text: string }[] = [];
 
   function reg(alias: string, name: string, kind: ParticipantKind, stereoType?: string, color?: string) {
     if (participantSet.has(alias)) return;
@@ -167,7 +172,12 @@ function parse(input: string): DiagramAST {
           };
           ref.current = msg; stmts.push(msg); pos++; break;
         }
-        default: pos++;
+        default: {
+          if (tok.type === "TEXT_LINE") {
+            errors.push({ line: (tok as any).lineNo, text: (tok as any).raw });
+          }
+          pos++;
+        }
       }
     }
     return stmts;
@@ -197,7 +207,12 @@ function parse(input: string): DiagramAST {
       if (tok.type === "END_BOX" || tok.type === "END") { pos++; break; }
       if (tok.type === "BOX") { pos++; children.push(parseBox(tok.title, tok.color, ref)); }
       else if (tok.type === "DECLARATION") { reg(tok.alias, tok.name, tok.kind, tok.stereoType, tok.color); direct.push(tok.alias); pos++; }
-      else pos++;
+      else {
+        if (tok.type === "TEXT_LINE") {
+          errors.push({ line: (tok as any).lineNo, text: (tok as any).raw });
+        }
+        pos++;
+      }
     }
     return {
       type: "BOX_DECL", title, color, directAliases: direct, children,
@@ -207,10 +222,19 @@ function parse(input: string): DiagramAST {
 
   const ref = { current: null as MessageNode | null };
   const all = parseStmts(ref);
+  while (pos < tokens.length) {
+    const tok = tokens[pos];
+    if (tok.type === "TEXT_LINE") {
+      errors.push({ line: (tok as any).lineNo, text: (tok as any).raw });
+    }
+    pos++;
+  }
+
   return {
     autonumber: hasAutonumber, participants: participantOrder, declMap,
     boxes: all.filter((s): s is BoxDeclNode => s.type === "BOX_DECL"),
     statements: all.filter((s): s is StatementNode => s.type !== "BOX_DECL"),
+    errors
   };
 }
 
@@ -1353,6 +1377,20 @@ export default function App() {
             marginTop: 8, background: "#2d1515", border: "1px solid #f47067",
             borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "#f47067"
           }}>⚠ {error}</div>}
+          {ast?.errors && ast.errors.length > 0 && (
+            <div style={{
+              marginTop: 8, background: "#2d1515", border: "1px solid #f47067",
+              borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "#f47067",
+              maxHeight: 150, overflowY: "auto"
+            }}>
+              <div style={{ fontWeight: "bold", marginBottom: 6 }}>⚠ Unsupported Syntax:</div>
+              {ast.errors.map((e, i) => (
+                <div key={i} style={{ fontFamily: "monospace", marginTop: 2 }}>
+                  Line {e.line}: <span style={{ opacity: 0.8 }}>{e.text.trim()}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
