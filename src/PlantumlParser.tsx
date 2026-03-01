@@ -67,8 +67,12 @@ function tokenizeLine(line: string): Token | null {
   if (boxM) return { type: "BOX", title: boxM[1] ?? boxM[2] ?? null, color: boxM[3] ?? boxM[4] ?? null };
 
   for (const kind of PARTICIPANT_KINDS) {
-    const m = t.match(new RegExp(`^${kind}\\s+(\\S+)(?:\\s+as\\s+(\\S+))?$`, "i"));
-    if (m) return { type: "DECLARATION", kind: kind as ParticipantKind, name: m[1], alias: m[2] ?? m[1] };
+    const m = t.match(new RegExp(`^${kind}\\s+(?:"([^"]+)"|(\\S+))(?:\\s+as\\s+(?:"([^"]+)"|(\\S+)))?$`, "i"));
+    if (m) {
+      const name = m[1] ?? m[2];
+      const alias = m[3] ?? m[4] ?? name;
+      return { type: "DECLARATION", kind: kind as ParticipantKind, name, alias };
+    }
   }
 
   const divM = t.match(/^==+\s*(.+?)\s*==+$/);
