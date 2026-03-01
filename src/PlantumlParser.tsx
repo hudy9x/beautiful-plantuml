@@ -245,7 +245,8 @@ const MSG_LINE_H = 14;   // height per extra label line
 const MSG_ARROW_BOT = 10;   // gap from bottom of row to arrow line
 const DIVIDER_H = 36;
 const BLOCK_HDR_H = 26;
-const BLOCK_PAD = 8;
+const BLOCK_PAD_X = 24;
+const BLOCK_PAD_Y = 8;
 const BOX_TITLE_H = 22;
 const GAP = 10;
 
@@ -753,11 +754,61 @@ interface DrawCtx {
 
 function splitLabel(l: string): string[] { return l.split("\\n"); }
 
+function getBlockBounds(s: StatementNode, aliasToX: Record<string, number>, diagramX1: number, diagramX2: number, depth: number): { bx1: number, bx2: number } {
+  const indent = depth * 5;
+  let minX = Infinity, maxX = -Infinity;
+  let found = false;
+
+  function update(x: number) {
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    found = true;
+  }
+
+  function visit(stmts: StatementNode[]) {
+    for (const st of stmts) {
+      if (st.type === "MESSAGE") {
+        if (aliasToX[st.from] !== undefined) update(aliasToX[st.from]);
+        if (aliasToX[st.to] !== undefined) update(aliasToX[st.to]);
+      } else if (st.type === "NOTE") {
+        if (st.p1 && aliasToX[st.p1] !== undefined) update(aliasToX[st.p1]);
+        if (st.p2 && aliasToX[st.p2] !== undefined) update(aliasToX[st.p2]);
+      } else if (st.type === "ALT_BLOCK" || st.type === "GROUP_BLOCK" || st.type === "LOOP_BLOCK") {
+        const childBounds = getBlockBounds(st, aliasToX, diagramX1, diagramX2, depth + 1);
+        update(childBounds.bx1 + BLOCK_PAD_X - 8);
+        update(childBounds.bx2 - BLOCK_PAD_X + 8);
+      }
+    }
+  }
+
+  if (s.type === "ALT_BLOCK") {
+    s.branches.forEach(b => visit(b.statements));
+  } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
+    visit(s.statements);
+  }
+
+  if (found) {
+    return {
+      bx1: Math.max(diagramX1 + indent, minX - BLOCK_PAD_X),
+      bx2: Math.min(diagramX2 - indent, maxX + BLOCK_PAD_X)
+    };
+  }
+  return { bx1: diagramX1 + indent, bx2: diagramX2 - indent };
+}
+
 function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { node: React.ReactNode; h: number } {
 
   const { aliasToX, diagramX1, diagramX2, autonumber } = ctx;
   const indent = depth * 5;
-  const bx1 = diagramX1 + indent, bx2 = diagramX2 - indent, bw = bx2 - bx1;
+  let bx1 = diagramX1 + indent;
+  let bx2 = diagramX2 - indent;
+
+  if (s.type === "ALT_BLOCK" || s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
+    const bounds = getBlockBounds(s, aliasToX, diagramX1, diagramX2, depth);
+    bx1 = bounds.bx1;
+    bx2 = bounds.bx2;
+  }
+  const bw = bx2 - bx1;
 
   switch (s.type) {
 
@@ -852,10 +903,10 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
             headerFill={isFirst ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.02)"}
             labelColor={C.altLabel} />
         );
-        cy += BLOCK_HDR_H + BLOCK_PAD;
+        cy += BLOCK_HDR_H + BLOCK_PAD_Y;
         const inner = drawBlock(branch.statements, cy, ctx, depth + 1);
         elems.push(...inner.nodes);
-        cy += inner.h + BLOCK_PAD;
+        cy += inner.h + BLOCK_PAD_Y;
         if (bi < s.branches.length - 1) {
           elems.push(
             <line key={`alt-sep-${bi}`} x1={bx1} y1={cy} x2={bx1 + bw} y2={cy}
@@ -878,8 +929,8 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
     }
 
     case "GROUP_BLOCK": {
-      const inner = drawBlock(s.statements, y + BLOCK_HDR_H + BLOCK_PAD, ctx, depth + 1);
-      const totalH = BLOCK_HDR_H + inner.h + BLOCK_PAD;
+      const inner = drawBlock(s.statements, y + BLOCK_HDR_H + BLOCK_PAD_Y, ctx, depth + 1);
+      const totalH = BLOCK_HDR_H + inner.h + BLOCK_PAD_Y;
       return {
         node: (
           <g key={`grp-${y}`} className="group-block">
@@ -895,8 +946,8 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
     }
 
     case "LOOP_BLOCK": {
-      const inner = drawBlock(s.statements, y + BLOCK_HDR_H + BLOCK_PAD, ctx, depth + 1);
-      const totalH = BLOCK_HDR_H + inner.h + BLOCK_PAD;
+      const inner = drawBlock(s.statements, y + BLOCK_HDR_H + BLOCK_PAD_Y, ctx, depth + 1);
+      const totalH = BLOCK_HDR_H + inner.h + BLOCK_PAD_Y;
       const ix = bx1 + bw - 18, iy = y + BLOCK_HDR_H / 2;
       return {
         node: (
