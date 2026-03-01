@@ -22,7 +22,9 @@ type ArrowType = "->" | "<-" | "-->" | "<--";
 type NotePosition = "left" | "right" | "over" | "across";
 
 type Token =
-  | { type: "START" } | { type: "END" } | { type: "AUTONUMBER" }
+  | { type: "START" } | { type: "END" }
+  | { type: "TITLE"; text: string }
+  | { type: "AUTONUMBER" }
   | { type: "END_NOTE" } | { type: "END_BOX" } | { type: "END_BLOCK" }
   | { type: "ELSE"; condition: string }
   | { type: "ALT"; condition: string }
@@ -38,7 +40,7 @@ type Token =
   | { type: "NOTE_BARE_INLINE"; position: "left" | "right"; color: string | null; text: string }
   | { type: "NOTE_BARE_START"; position: "left" | "right"; color: string | null };
 
-interface MessageNode { type: "MESSAGE"; from: string; arrow: ArrowType; to: string; label: string; idx: number; leftAlias: string; rightAlias: string; }
+interface MessageNode { type: "MESSAGE"; from: string; arrow: ArrowType; to: string; label: string; idx: number; autoNum: number | null; leftAlias: string; rightAlias: string; }
 interface NoteNode { type: "NOTE"; position: NotePosition; p1: string | null; p2: string | null; color: string | null; lines: string[]; }
 interface DividerNode { type: "DIVIDER"; label: string; }
 interface AltBranch { condition: string; statements: StatementNode[]; }
@@ -47,7 +49,7 @@ interface GroupBlockNode { type: "GROUP_BLOCK"; label: string; statements: State
 interface LoopBlockNode { type: "LOOP_BLOCK"; label: string; statements: StatementNode[]; }
 interface BoxDeclNode { type: "BOX_DECL"; title: string | null; color: string | null; directAliases: string[]; children: BoxDeclNode[]; allAliases: string[]; }
 type StatementNode = MessageNode | NoteNode | DividerNode | AltBlockNode | GroupBlockNode | LoopBlockNode | BoxDeclNode;
-interface DiagramAST { autonumber: boolean; participants: Participant[]; declMap: Record<string, Participant>; statements: StatementNode[]; boxes: BoxDeclNode[]; errors: { line: number; text: string }[]; }
+interface DiagramAST { title: string | null; autonumber: boolean; participants: Participant[]; declMap: Record<string, Participant>; statements: StatementNode[]; boxes: BoxDeclNode[]; errors: { line: number; text: string }[]; }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // parser/tokenizer.ts
@@ -62,6 +64,9 @@ function tokenizeLine(line: string): Token | null {
   if (t === "end note") return { type: "END_NOTE" };
   if (t === "end box") return { type: "END_BOX" };
   if (t === "end") return { type: "END_BLOCK" };
+
+  const titleM = t.match(/^title\s+(?:"([^"]+)"|(.+))$/i);
+  if (titleM) return { type: "TITLE", text: titleM[1] ?? titleM[2] };
 
   const boxM = t.match(/^box(?:\s+"([^"]*)"|\s+([^#\s]\S*))?(?:\s+(#\S+))?(?:\s+(#\S+))?$/i);
   if (boxM) return { type: "BOX", title: boxM[1] ?? boxM[2] ?? null, color: boxM[3] ?? boxM[4] ?? null };
@@ -121,7 +126,9 @@ function parse(input: string): DiagramAST {
     const t = tokenizeLine(line);
     if (t !== null) tokens.push({ ...t, lineNo: i + 1, raw: line });
   });
-  let pos = 0, msgIdx = 0;
+  let pos = 0, msgIdx = 0, autoNumIdx = 1;
+  let isAutoNumOn = false;
+  let title: string | null = null;
   const hasAutonumber = tokens.some(t => t.type === "AUTONUMBER");
   const declMap: Record<string, Participant> = {};
   const participantOrder: Participant[] = [];
@@ -162,12 +169,14 @@ function parse(input: string): DiagramAST {
         case "ALT": { const c = tok.condition; pos++; stmts.push(parseAlt(c, ref)); break; }
         case "GROUP": { const l = tok.label; pos++; stmts.push(parseGroup(l, ref)); break; }
         case "LOOP": { const l = tok.label; pos++; stmts.push(parseLoop(l, ref)); break; }
+        case "TITLE": { title = tok.text; pos++; break; }
+        case "AUTONUMBER": { isAutoNumOn = true; autoNumIdx = 1; pos++; break; }
         case "MESSAGE": {
           msgIdx++; ensure(tok.from); ensure(tok.to);
           const fi = participantOrder.findIndex(p => p.alias === tok.from);
           const ti = participantOrder.findIndex(p => p.alias === tok.to);
           const msg: MessageNode = {
-            type: "MESSAGE", from: tok.from, arrow: tok.arrow, to: tok.to, label: tok.label, idx: msgIdx,
+            type: "MESSAGE", from: tok.from, arrow: tok.arrow, to: tok.to, label: tok.label, idx: msgIdx, autoNum: isAutoNumOn ? autoNumIdx++ : null,
             leftAlias: fi <= ti ? tok.from : tok.to, rightAlias: fi <= ti ? tok.to : tok.from
           };
           ref.current = msg; stmts.push(msg); pos++; break;
@@ -231,7 +240,7 @@ function parse(input: string): DiagramAST {
   }
 
   return {
-    autonumber: hasAutonumber, participants: participantOrder, declMap,
+    title, autonumber: hasAutonumber, participants: participantOrder, declMap,
     boxes: all.filter((s): s is BoxDeclNode => s.type === "BOX_DECL"),
     statements: all.filter((s): s is StatementNode => s.type !== "BOX_DECL"),
     errors
@@ -330,8 +339,8 @@ const GAP = 10;
 // stay at their own minimum, matching image 2 from the reference.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function estLabelW(label: string, autonumber: boolean, idx: number): number {
-  const prefix = autonumber ? `${idx}. ` : "";
+function estLabelW(label: string, autoNum: number | null): number {
+  const prefix = autoNum !== null ? `${autoNum}. ` : "";
   const lines = label.split("\\n");
   const first = prefix + lines[0];
   const longest = lines.slice(1).reduce((a, b) => b.length > a.length ? b : a, first);
@@ -341,7 +350,6 @@ function estLabelW(label: string, autonumber: boolean, idx: number): number {
 function computeColWidths(
   participants: Participant[],
   statements: StatementNode[],
-  autonumber: boolean,
   boxes: BoxDeclNode[],
   declMap: Record<string, Participant>
 ): number[] {
@@ -366,7 +374,7 @@ function computeColWidths(
           // The gap to the right neighbor must be >= SELF_LOOP_W + label_width + margin.
           // If this is the rightmost column (no right neighbor), no constraint needed.
           if (fi < N - 1) {
-            const tw = estLabelW(s.label, autonumber, s.idx);
+            const tw = estLabelW(s.label, s.autoNum);
             const needed = SELF_LOOP_W + tw + COL_PAD;
             constraints.push({ lo: fi, hi: fi + 1, needed });
           }
@@ -374,7 +382,7 @@ function computeColWidths(
         }
         const lo = Math.min(fi, ti);
         const hi = Math.max(fi, ti);
-        const tw = estLabelW(s.label, autonumber, s.idx);
+        const tw = estLabelW(s.label, s.autoNum);
         const needed = tw + COL_PAD * 2;
         constraints.push({ lo, hi, needed });
       }
@@ -646,14 +654,14 @@ function Lifelines({ xs, y1, y2 }: { xs: number[]; y1: number; y2: number }) {
 
 // ── Message arrow  ─────────────────────────────────────────────────────────────
 // FIX #3: autonumber is prepended as "N. " to the label text — no separate badge.
-function MessageArrow({ x1, y, x2, dashed, rawLabel, autonumber, idx }:
-  { x1: number; y: number; x2: number; dashed: boolean; rawLabel: string; autonumber: boolean; idx: number }) {
+function MessageArrow({ x1, y, x2, dashed, rawLabel, autoNum, idx }:
+  { x1: number; y: number; x2: number; dashed: boolean; rawLabel: string; autoNum: number | null; idx: number }) {
 
   // Build display lines: prepend "N. " to first line if autonumber
   const rawLines = rawLabel ? rawLabel.split("\\n") : [];
   const lines = [...rawLines];
-  if (autonumber && lines.length === 0) lines.push(`${idx}.`);
-  else if (autonumber) lines[0] = `${idx}. ${lines[0]}`;
+  if (autoNum !== null && lines.length === 0) lines.push(`${autoNum}.`);
+  else if (autoNum !== null) lines[0] = `${autoNum}. ${lines[0]}`;
 
   const mid = (x1 + x2) / 2;
   const nExtra = Math.max(0, lines.length - 1);
@@ -697,13 +705,13 @@ function selfMessageH(lines: string[]): number {
   return labelH + SELF_LOOP_H + 8;
 }
 
-function SelfArrow({ cx, y, dashed, rawLabel, autonumber, idx, arrowBack }:
-  { cx: number; y: number; dashed: boolean; rawLabel: string; autonumber: boolean; idx: number; arrowBack: boolean }) {
+function SelfArrow({ cx, y, dashed, rawLabel, autoNum, idx, arrowBack }:
+  { cx: number; y: number; dashed: boolean; rawLabel: string; autoNum: number | null; idx: number; arrowBack: boolean }) {
 
   const rawLines = rawLabel ? rawLabel.split("\\n") : [];
   const lines = [...rawLines];
-  if (autonumber && lines.length === 0) lines.push(`${idx}.`);
-  else if (autonumber) lines[0] = `${idx}. ${lines[0]}`;
+  if (autoNum !== null && lines.length === 0) lines.push(`${autoNum}.`);
+  else if (autoNum !== null) lines[0] = `${autoNum}. ${lines[0]}`;
 
   const dash = dashed ? "5,3" : undefined;
   const mk = dashed ? MK_DASHED : MK_SOLID;
@@ -843,7 +851,6 @@ interface DrawCtx {
   aliasToX: Record<string, number>;
   diagramX1: number;
   diagramX2: number;
-  autonumber: boolean;
 }
 
 function splitLabel(l: string): string[] { return l.split("\\n"); }
@@ -892,7 +899,7 @@ function getBlockBounds(s: StatementNode, aliasToX: Record<string, number>, diag
 
 function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { node: React.ReactNode; h: number } {
 
-  const { aliasToX, diagramX1, diagramX2, autonumber } = ctx;
+  const { aliasToX, diagramX1, diagramX2 } = ctx;
   const indent = depth * 5;
   let bx1 = diagramX1 + indent;
   let bx2 = diagramX2 - indent;
@@ -914,15 +921,15 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
 
       if (isSelf) {
         const rawLines = s.label ? splitLabel(s.label) : [];
-        const dispLines = autonumber
-          ? (rawLines.length ? [`${s.idx}. ${rawLines[0]}`, ...rawLines.slice(1)] : [`${s.idx}.`])
+        const dispLines = s.autoNum !== null
+          ? (rawLines.length ? [`${s.autoNum}. ${rawLines[0]}`, ...rawLines.slice(1)] : [`${s.autoNum}.`])
           : rawLines;
         const h = selfMessageH(dispLines);
         return {
           node: <SelfArrow key={`msg-${s.idx}`}
             cx={fromX} y={y}
             dashed={s.arrow.includes("--")}
-            rawLabel={s.label} autonumber={autonumber} idx={s.idx}
+            rawLabel={s.label} autoNum={s.autoNum} idx={s.idx}
             arrowBack={true} />,
           h,
         };
@@ -936,7 +943,7 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
         node: <MessageArrow key={`msg-${s.idx}`}
           x1={x1} y={y} x2={x2}
           dashed={s.arrow.includes("--")}
-          rawLabel={s.label} autonumber={autonumber} idx={s.idx} />,
+          rawLabel={s.label} autoNum={s.autoNum} idx={s.idx} />,
         h,
       };
     }
@@ -1204,13 +1211,13 @@ function drawBoxBands(
 
 // ── Main SequenceDiagram component ────────────────────────────────────────────
 function SequenceDiagram({ ast }: { ast: DiagramAST }) {
-  const { participants, statements, autonumber, boxes, declMap } = ast;
+  const { participants, statements, boxes, declMap, title } = ast;
   if (!participants.length) return null;
 
   const N = participants.length;
 
   // gapW[g] = pixel distance between center of col g and col g+1  (length N-1)
-  const gapW = computeColWidths(participants, statements, autonumber, boxes, declMap);
+  const gapW = computeColWidths(participants, statements, boxes, declMap);
 
   // Edge margins: half of the adjacent gap (so shapes don't clip the svg edge)
   const edgeL = N > 1 ? Math.max(COL_MIN_W / 2, gapW[0] / 2) : COL_MIN_W / 2;
@@ -1253,13 +1260,15 @@ function SequenceDiagram({ ast }: { ast: DiagramAST }) {
 
   // Box title extra height
   const hasBoxes = boxes.length > 0;
+  let titleHOffset = 0;
+  if (title) titleHOffset = 40;
   const maxBDepth = hasBoxes ? Math.max(...boxes.map(boxDepth)) : 0;
-  const boxTitleH = maxBDepth * BOX_TITLE_H;
+  const boxTitleH = maxBDepth * BOX_TITLE_H + titleHOffset;
 
   const headerPartCY = boxTitleH + PART_H / 2;
   const timelineY = boxTitleH + PART_H + GAP;
 
-  const ctx: DrawCtx = { aliasToX, diagramX1: 0, diagramX2: totalW, autonumber };
+  const ctx: DrawCtx = { aliasToX, diagramX1: 0, diagramX2: totalW };
   const { nodes: timelineNodes, h: timelineH } = drawBlock(statements, timelineY, ctx, 0);
 
   const footerY = timelineY + timelineH + GAP;
@@ -1282,10 +1291,17 @@ function SequenceDiagram({ ast }: { ast: DiagramAST }) {
     >
       <SvgDefs />
 
+      {/* Diagram Title */}
+      {title && (
+        <text x={totalW / 2} y={24} textAnchor="middle" fontSize={18} fontWeight="bold" fill={C.text}>
+          {title}
+        </text>
+      )}
+
       {/* Box bands — drawn first (lowest layer) */}
       {hasBoxes && (
         <g className="box-bands">
-          {drawBoxBands(boxes, aliasToX, declMap, shiftedCenters, gapW, 0, totalH)}
+          {drawBoxBands(boxes, aliasToX, declMap, shiftedCenters, gapW, titleHOffset, totalH)}
         </g>
       )}
 
