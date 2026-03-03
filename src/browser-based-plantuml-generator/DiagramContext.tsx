@@ -25,6 +25,7 @@ export interface DiagramContextType {
     deleteParticipant: (alias: string) => void;
     moveParticipant: (alias: string, direction: "left" | "right") => void;
     insertParticipantAt: (index: number, kind?: string) => void;
+    insertStatementAt: (afterId: string | null, kind: string) => void;
   };
 }
 
@@ -283,6 +284,51 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
       const safeIndex = Math.max(0, Math.min(newAst.participants.length, index));
       newAst.participants.splice(safeIndex, 0, newP);
       updateCode(astToString(newAst));
+    },
+
+    insertStatementAt: (afterId: string | null, kind: string) => {
+      if (!ast) return;
+      const p1 = ast.participants[0]?.alias || "A";
+      const p2 = ast.participants[1]?.alias || p1;
+      let newNode: any;
+      const id = genId();
+      switch (kind) {
+        case "MESSAGE":
+          newNode = { type: "MESSAGE", id, from: p1, to: p2, arrow: "->", label: "new message", autoNum: null, idx: -1, leftAlias: p1, rightAlias: p2 };
+          break;
+        case "ALT":
+          newNode = { type: "ALT_BLOCK", id, branches: [{ condition: "condition", statements: [] }, { condition: "", statements: [] }] };
+          break;
+        case "LOOP":
+          newNode = { type: "LOOP_BLOCK", id, label: "10 times", statements: [] };
+          break;
+        case "GROUP":
+          newNode = { type: "GROUP_BLOCK", id, label: "new handler", statements: [] };
+          break;
+        case "DIVIDER":
+          newNode = { type: "DIVIDER", id, label: "section" };
+          break;
+        case "NOTE_LEFT":
+          newNode = { type: "NOTE", id, position: "left", p1, p2: null, color: null, lines: ["note text"] };
+          break;
+        case "NOTE_RIGHT":
+          newNode = { type: "NOTE", id, position: "right", p1, p2: null, color: null, lines: ["note text"] };
+          break;
+        default:
+          return;
+      }
+      const newStmts: StatementNode[] = JSON.parse(JSON.stringify(ast.statements));
+      if (afterId === null) {
+        newStmts.unshift(newNode);
+      } else {
+        const idx = newStmts.findIndex(s => s.id === afterId);
+        if (idx !== -1) {
+          newStmts.splice(idx + 1, 0, newNode);
+        } else {
+          newStmts.push(newNode);
+        }
+      }
+      updateCode(astToString({ ...ast, statements: newStmts }));
     }
   };
 

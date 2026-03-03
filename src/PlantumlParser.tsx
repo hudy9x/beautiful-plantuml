@@ -470,6 +470,27 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
   const ctx: DrawCtx = { aliasToX, diagramX1: 0, diagramX2: totalW };
   const { nodes: timelineNodes, h: timelineH } = drawBlock(statements, timelineY, ctx, 0);
 
+  // Compute y-slots for each top-level statement (for horizontal + button snapping)
+  interface StatementSlot { id: string; yMid: number; yBottom: number; }
+  const statementSlots: StatementSlot[] = [];
+  {
+    let sy = timelineY;
+    for (const s of statements) {
+      const drawn = (() => {
+        try {
+          // We already computed this in drawBlock; replicate height here
+          const tmp = { aliasToX, diagramX1: 0, diagramX2: totalW };
+          // Import the drawStmt output height via drawBlock on a single statement
+          const r = drawBlock([s], sy, tmp, 0);
+          return r.h;
+        } catch { return GAP; }
+      })();
+      const stmtH = drawn || GAP;
+      statementSlots.push({ id: s.id, yMid: sy + stmtH / 2, yBottom: sy + stmtH });
+      sy += stmtH + GAP;
+    }
+  }
+
   const footerY = timelineY + timelineH + GAP;
   const totalH = footerY + PART_H + 8 + padBottom;
 
@@ -486,13 +507,16 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
   const hoverLinesRef = useRef<SVGGElement>(null);
   const vLineRef = useRef<SVGLineElement>(null);
   const hLineRef = useRef<SVGLineElement>(null);
-  const addBtnGroupRef = useRef<SVGGElement>(null);
+  const addBtnGroupRef = useRef<SVGGElement>(null);       // vertical + button (participant insert)
+  const hAddBtnGroupRef = useRef<SVGGElement>(null);      // horizontal + button (statement insert)
   const lastInsertIndexRef = useRef<number>(-1);
+  const lastHoverAfterIdRef = useRef<string | null>(null);
 
   const [popover, setPopover] = useState<{ x: number, y: number, insertIdx: number } | null>(null);
+  const [hStatementPopover, setHStatementPopover] = useState<{ x: number, y: number, afterId: string | null } | null>(null);
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (popover) return;
+    if (popover || hStatementPopover) return;
     if (!svgRef.current || !hoverLinesRef.current || !vLineRef.current || !hLineRef.current || !addBtnGroupRef.current) return;
 
     const pt = svgRef.current.createSVGPoint();
@@ -511,29 +535,61 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
     hLineRef.current.setAttribute("y1", String(ny));
     hLineRef.current.setAttribute("y2", String(ny));
 
+    // Vertical + button: tracks x, fixed at top
     let insertIdx = 0;
     while (insertIdx < shiftedCenters.length && nx > shiftedCenters[insertIdx]) {
       insertIdx++;
     }
     lastInsertIndexRef.current = insertIdx;
-
     addBtnGroupRef.current.setAttribute("transform", `translate(${nx}, 10)`);
+
+    // Horizontal + button: tracks y, fixed at right edge
+    if (hAddBtnGroupRef.current) {
+      // Find the nearest slot: pick the slot whose midpoint is closest to ny
+      let bestId: string | null = null;
+      if (statementSlots.length > 0) {
+        // If cursor is above the first statement, afterId = null (insert at top)
+        if (ny < statementSlots[0].yMid) {
+          bestId = null;
+        } else {
+          // Walk through slots and pick the one whose midpoint we've passed
+          bestId = statementSlots[statementSlots.length - 1].id;
+          for (let i = 0; i < statementSlots.length - 1; i++) {
+            const midBetween = (statementSlots[i].yBottom + statementSlots[i + 1].yMid) / 2;
+            if (ny < midBetween) {
+              bestId = statementSlots[i].id;
+              break;
+            }
+          }
+        }
+      }
+      lastHoverAfterIdRef.current = bestId;
+      hAddBtnGroupRef.current.setAttribute("transform", `translate(${totalW - 20}, ${ny})`);
+    }
   };
 
   const handleMouseLeave = () => {
-    if (popover) return;
+    if (popover || hStatementPopover) return;
     if (hoverLinesRef.current) {
       hoverLinesRef.current.style.display = "none";
     }
   };
 
   useEffect(() => {
-    // Close popover when clicking anywhere else
+    // Close participant popover when clicking anywhere else
     if (!popover) return;
     const closePopover = () => setPopover(null);
     document.addEventListener("click", closePopover);
     return () => document.removeEventListener("click", closePopover);
   }, [popover]);
+
+  useEffect(() => {
+    // Close statement popover when clicking anywhere else
+    if (!hStatementPopover) return;
+    const close = () => setHStatementPopover(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [hStatementPopover]);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -629,9 +685,13 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
         vLineRef={vLineRef}
         hLineRef={hLineRef}
         addBtnGroupRef={addBtnGroupRef}
+        hAddBtnGroupRef={hAddBtnGroupRef}
         lastInsertIndexRef={lastInsertIndexRef}
+        lastHoverAfterIdRef={lastHoverAfterIdRef}
         popover={popover}
         setPopover={setPopover}
+        hStatementPopover={hStatementPopover}
+        setHStatementPopover={setHStatementPopover}
       />
     </svg>
   );
