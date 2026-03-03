@@ -2,7 +2,9 @@
 // PlantUML Sequence Diagram Viewer  —  SVG renderer
 // =============================================================================
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, createContext, useContext } from "react";
+
+const genId = () => Math.random().toString(36).substring(2, 9);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // types/index.ts
@@ -40,14 +42,14 @@ type Token =
   | { type: "NOTE_BARE_INLINE"; position: "left" | "right"; color: string | null; text: string }
   | { type: "NOTE_BARE_START"; position: "left" | "right"; color: string | null };
 
-interface MessageNode { type: "MESSAGE"; from: string; arrow: ArrowType; to: string; label: string; idx: number; autoNum: number | null; leftAlias: string; rightAlias: string; }
-interface NoteNode { type: "NOTE"; position: NotePosition; p1: string | null; p2: string | null; color: string | null; lines: string[]; }
-interface DividerNode { type: "DIVIDER"; label: string; }
+interface MessageNode { type: "MESSAGE"; id: string; from: string; arrow: ArrowType; to: string; label: string; idx: number; autoNum: number | null; leftAlias: string; rightAlias: string; }
+interface NoteNode { type: "NOTE"; id: string; position: NotePosition; p1: string | null; p2: string | null; color: string | null; lines: string[]; }
+interface DividerNode { type: "DIVIDER"; id: string; label: string; }
 interface AltBranch { condition: string; statements: StatementNode[]; }
-interface AltBlockNode { type: "ALT_BLOCK"; branches: AltBranch[]; }
-interface GroupBlockNode { type: "GROUP_BLOCK"; label: string; statements: StatementNode[]; }
-interface LoopBlockNode { type: "LOOP_BLOCK"; label: string; statements: StatementNode[]; }
-interface BoxDeclNode { type: "BOX_DECL"; title: string | null; color: string | null; directAliases: string[]; children: BoxDeclNode[]; allAliases: string[]; }
+interface AltBlockNode { type: "ALT_BLOCK"; id: string; branches: AltBranch[]; }
+interface GroupBlockNode { type: "GROUP_BLOCK"; id: string; label: string; statements: StatementNode[]; }
+interface LoopBlockNode { type: "LOOP_BLOCK"; id: string; label: string; statements: StatementNode[]; }
+interface BoxDeclNode { type: "BOX_DECL"; id: string; title: string | null; color: string | null; directAliases: string[]; children: BoxDeclNode[]; allAliases: string[]; }
 type StatementNode = MessageNode | NoteNode | DividerNode | AltBlockNode | GroupBlockNode | LoopBlockNode | BoxDeclNode;
 interface DiagramAST { title: string | null; autonumber: boolean; participants: Participant[]; declMap: Record<string, Participant>; statements: StatementNode[]; boxes: BoxDeclNode[]; errors: { line: number; text: string }[]; }
 
@@ -161,11 +163,11 @@ function parse(input: string): DiagramAST {
       switch (tok.type) {
         case "BOX": { pos++; stmts.push(parseBox(tok.title, tok.color, ref)); break; }
         case "DECLARATION": { reg(tok.alias, tok.name, tok.kind, tok.stereoType, tok.color); pos++; break; }
-        case "NOTE_INLINE": { pos++; stmts.push({ type: "NOTE", position: tok.position, p1: tok.p1, p2: tok.p2, color: tok.color, lines: [tok.text] }); break; }
-        case "NOTE_START": { pos++; stmts.push({ type: "NOTE", position: tok.position, p1: tok.p1, p2: tok.p2, color: tok.color, lines: collectNoteLines() }); break; }
-        case "NOTE_BARE_INLINE": { pos++; const p1 = ref.current ? (tok.position === "left" ? ref.current.leftAlias : ref.current.rightAlias) : null; stmts.push({ type: "NOTE", position: tok.position, p1, p2: null, color: tok.color, lines: [tok.text] }); break; }
-        case "NOTE_BARE_START": { pos++; const p1 = ref.current ? (tok.position === "left" ? ref.current.leftAlias : ref.current.rightAlias) : null; stmts.push({ type: "NOTE", position: tok.position, p1, p2: null, color: tok.color, lines: collectNoteLines() }); break; }
-        case "DIVIDER": { stmts.push({ type: "DIVIDER", label: tok.label }); pos++; break; }
+        case "NOTE_INLINE": { pos++; stmts.push({ type: "NOTE", id: genId(), position: tok.position, p1: tok.p1, p2: tok.p2, color: tok.color, lines: [tok.text] }); break; }
+        case "NOTE_START": { pos++; stmts.push({ type: "NOTE", id: genId(), position: tok.position, p1: tok.p1, p2: tok.p2, color: tok.color, lines: collectNoteLines() }); break; }
+        case "NOTE_BARE_INLINE": { pos++; const p1 = ref.current ? (tok.position === "left" ? ref.current.leftAlias : ref.current.rightAlias) : null; stmts.push({ type: "NOTE", id: genId(), position: tok.position, p1, p2: null, color: tok.color, lines: [tok.text] }); break; }
+        case "NOTE_BARE_START": { pos++; const p1 = ref.current ? (tok.position === "left" ? ref.current.leftAlias : ref.current.rightAlias) : null; stmts.push({ type: "NOTE", id: genId(), position: tok.position, p1, p2: null, color: tok.color, lines: collectNoteLines() }); break; }
+        case "DIVIDER": { stmts.push({ type: "DIVIDER", id: genId(), label: tok.label }); pos++; break; }
         case "ALT": { const c = tok.condition; pos++; stmts.push(parseAlt(c, ref)); break; }
         case "GROUP": { const l = tok.label; pos++; stmts.push(parseGroup(l, ref)); break; }
         case "LOOP": { const l = tok.label; pos++; stmts.push(parseLoop(l, ref)); break; }
@@ -176,7 +178,7 @@ function parse(input: string): DiagramAST {
           const fi = participantOrder.findIndex(p => p.alias === tok.from);
           const ti = participantOrder.findIndex(p => p.alias === tok.to);
           const msg: MessageNode = {
-            type: "MESSAGE", from: tok.from, arrow: tok.arrow, to: tok.to, label: tok.label, idx: msgIdx, autoNum: isAutoNumOn ? autoNumIdx++ : null,
+            type: "MESSAGE", id: genId(), from: tok.from, arrow: tok.arrow, to: tok.to, label: tok.label, idx: msgIdx, autoNum: isAutoNumOn ? autoNumIdx++ : null,
             leftAlias: fi <= ti ? tok.from : tok.to, rightAlias: fi <= ti ? tok.to : tok.from
           };
           ref.current = msg; stmts.push(msg); pos++; break;
@@ -199,15 +201,15 @@ function parse(input: string): DiagramAST {
       branches.push({ condition: c, statements: parseStmts(ref) });
     }
     if (pos < tokens.length && tokens[pos].type === "END_BLOCK") pos++;
-    return { type: "ALT_BLOCK", branches };
+    return { type: "ALT_BLOCK", id: genId(), branches };
   }
   function parseGroup(label: string, ref: { current: MessageNode | null }): GroupBlockNode {
     const s = parseStmts(ref); if (pos < tokens.length && tokens[pos].type === "END_BLOCK") pos++;
-    return { type: "GROUP_BLOCK", label, statements: s };
+    return { type: "GROUP_BLOCK", id: genId(), label, statements: s };
   }
   function parseLoop(label: string, ref: { current: MessageNode | null }): LoopBlockNode {
     const s = parseStmts(ref); if (pos < tokens.length && tokens[pos].type === "END_BLOCK") pos++;
-    return { type: "LOOP_BLOCK", label, statements: s };
+    return { type: "LOOP_BLOCK", id: genId(), label, statements: s };
   }
   function parseBox(title: string | null, color: string | null, ref: { current: MessageNode | null }): BoxDeclNode {
     const direct: string[] = [], children: BoxDeclNode[] = [];
@@ -224,7 +226,7 @@ function parse(input: string): DiagramAST {
       }
     }
     return {
-      type: "BOX_DECL", title, color, directAliases: direct, children,
+      type: "BOX_DECL", id: genId(), title, color, directAliases: direct, children,
       allAliases: [...direct, ...children.flatMap(c => c.allAliases)]
     };
   }
@@ -245,6 +247,137 @@ function parse(input: string): DiagramAST {
     statements: all.filter((s): s is StatementNode => s.type !== "BOX_DECL"),
     errors
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// parser/serializer.ts
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function astToString(ast: DiagramAST): string {
+  const lines: string[] = ["@startuml"];
+  if (ast.title) lines.push(`title ${ast.title}`);
+  if (ast.autonumber) lines.push("autonumber");
+  lines.push("");
+
+  const boxedAliases = new Set<string>();
+  ast.boxes.forEach(b => b.allAliases.forEach(a => boxedAliases.add(a)));
+
+  const boxByFirstAlias = new Map<string, BoxDeclNode>();
+  ast.boxes.forEach(b => {
+    if (b.allAliases.length > 0) boxByFirstAlias.set(b.allAliases[0], b);
+  });
+
+  const printedBoxes = new Set<BoxDeclNode>();
+
+  function serializeBox(b: BoxDeclNode, indent: string) {
+    let s = `${indent}box`;
+    if (b.title) s += ` "${b.title}"`;
+    if (b.color) s += ` ${b.color}`;
+    lines.push(s);
+    b.directAliases.forEach(a => {
+      const p = ast.declMap[a];
+      if (p) {
+        let ps = `${indent}  ${p.kind} "${p.name}" as ${p.alias}`;
+        if (p.name === p.alias && !p.name.includes(" ")) ps = `${indent}  ${p.kind} ${p.name}`;
+        if (p.stereoType) ps += ` <<${p.stereoType}>>`;
+        if (p.color) ps += ` ${p.color}`;
+        lines.push(ps);
+      }
+    });
+    b.children.forEach(c => serializeBox(c, indent + "  "));
+    lines.push(`${indent}end box`);
+  }
+
+  let hasDecls = false;
+  ast.participants.forEach(p => {
+    if (boxByFirstAlias.has(p.alias)) {
+      const b = boxByFirstAlias.get(p.alias)!;
+      if (!printedBoxes.has(b)) {
+        serializeBox(b, "");
+        printedBoxes.add(b);
+        hasDecls = true;
+      }
+    }
+    if (!boxedAliases.has(p.alias)) {
+      let s = `${p.kind} "${p.name}" as ${p.alias}`;
+      if (p.name === p.alias && !p.name.includes(" ")) s = `${p.kind} ${p.name}`;
+      if (p.stereoType) s += ` <<${p.stereoType}>>`;
+      if (p.color) s += ` ${p.color}`;
+      lines.push(s);
+      hasDecls = true;
+    }
+  });
+  if (hasDecls) lines.push("");
+
+  function serializeStmts(stmts: StatementNode[], indent: string) {
+    stmts.forEach(s => {
+      if (s.type === "DIVIDER") {
+        lines.push(`${indent}== ${s.label} ==`);
+      } else if (s.type === "MESSAGE") {
+        let msg = `${indent}${s.from} ${s.arrow} ${s.to}`;
+        if (s.label) msg += ` : ${s.label}`;
+        lines.push(msg);
+      } else if (s.type === "NOTE") {
+        const cText = s.color ? ` ${s.color}` : "";
+        if (s.position === "across") {
+          if (s.lines.length === 1) lines.push(`${indent}note across${cText} : ${s.lines[0]}`);
+          else {
+            lines.push(`${indent}note across${cText}`);
+            s.lines.forEach(l => lines.push(`${indent}${l}`));
+            lines.push(`${indent}end note`);
+          }
+        } else if (s.position === "over") {
+          let target = s.p1!;
+          if (s.p2) target += `, ${s.p2}`;
+          if (s.lines.length === 1) lines.push(`${indent}note over ${target}${cText} : ${s.lines[0]}`);
+          else {
+            lines.push(`${indent}note over ${target}${cText}`);
+            s.lines.forEach(l => lines.push(`${indent}${l}`));
+            lines.push(`${indent}end note`);
+          }
+        } else {
+          const bare = !s.p1;
+          if (bare) {
+            if (s.lines.length === 1) lines.push(`${indent}note ${s.position}${cText} : ${s.lines[0]}`);
+            else {
+              lines.push(`${indent}note ${s.position}${cText}`);
+              s.lines.forEach(l => lines.push(`${indent}${l}`));
+              lines.push(`${indent}end note`);
+            }
+          } else {
+            if (s.lines.length === 1) lines.push(`${indent}note ${s.position} of ${s.p1}${cText} : ${s.lines[0]}`);
+            else {
+              lines.push(`${indent}note ${s.position} of ${s.p1}${cText}`);
+              s.lines.forEach(l => lines.push(`${indent}${l}`));
+              lines.push(`${indent}end note`);
+            }
+          }
+        }
+      } else if (s.type === "ALT_BLOCK") {
+        s.branches.forEach((b, i) => {
+          if (i === 0) lines.push(`${indent}alt ${b.condition}`);
+          else if (b.condition) lines.push(`${indent}else ${b.condition}`);
+          else lines.push(`${indent}else`);
+          serializeStmts(b.statements, indent + "  ");
+        });
+        lines.push(`${indent}end`);
+      } else if (s.type === "GROUP_BLOCK") {
+        lines.push(`${indent}group ${s.label}`);
+        serializeStmts(s.statements, indent + "  ");
+        lines.push(`${indent}end`);
+      } else if (s.type === "LOOP_BLOCK") {
+        lines.push(`${indent}loop ${s.label}`);
+        serializeStmts(s.statements, indent + "  ");
+        lines.push(`${indent}end`);
+      }
+    });
+  }
+
+  serializeStmts(ast.statements, "");
+
+  lines.push("");
+  lines.push("@enduml");
+  return lines.join("\n");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -597,8 +730,8 @@ const SHAPE_FNS: Record<ParticipantKind, (n: string, s: string, bg: string, sIco
   collections: shapeCollections, queue: shapeQueue,
 };
 
-function ParticipantShape({ kind, name, cx, cy, stroke, stereoType, fill }:
-  { kind: ParticipantKind; name: string; cx: number; cy: number; stroke: string; stereoType?: string; fill?: string; }) {
+function ParticipantShape({ kind, name, cx, cy, stroke, stereoType, fill, dataId }:
+  { kind: ParticipantKind; name: string; cx: number; cy: number; stroke: string; stereoType?: string; fill?: string; dataId?: string; }) {
 
   const rgb = fill ? resolveBoxRGB(fill) : undefined;
   const bg = rgb ? `rgb(${rgb})` : C.surface;
@@ -615,7 +748,7 @@ function ParticipantShape({ kind, name, cx, cy, stroke, stereoType, fill }:
 
   return (
     <g transform={`translate(${cx},${cy})`}
-      className={`participant participant-${kind}`} data-name={name}>
+      className={`participant participant-${kind}`} data-name={name} data-id={dataId} style={dataId ? { cursor: "pointer" } : undefined}>
       {(SHAPE_FNS[kind] ?? shapeParticipant)(name, stroke, bg, sIconChar, sIconColor, sTitle)}
     </g>
   );
@@ -654,8 +787,11 @@ function Lifelines({ xs, y1, y2 }: { xs: number[]; y1: number; y2: number }) {
 
 // ── Message arrow  ─────────────────────────────────────────────────────────────
 // FIX #3: autonumber is prepended as "N. " to the label text — no separate badge.
-function MessageArrow({ x1, y, x2, dashed, rawLabel, autoNum, idx }:
-  { x1: number; y: number; x2: number; dashed: boolean; rawLabel: string; autoNum: number | null; idx: number }) {
+function MessageArrow({ x1, y, x2, dashed, rawLabel, autoNum, idx, node }:
+  { x1: number; y: number; x2: number; dashed: boolean; rawLabel: string; autoNum: number | null; idx: number; node: MessageNode }) {
+
+  const { selectedNodeId } = useDiagram();
+  const isSelected = selectedNodeId === node.id;
 
   // Build display lines: prepend "N. " to first line if autonumber
   const rawLines = rawLabel ? rawLabel.split("\\n") : [];
@@ -669,7 +805,11 @@ function MessageArrow({ x1, y, x2, dashed, rawLabel, autoNum, idx }:
   const arrowY = y + rowH - MSG_ARROW_BOT;
 
   return (
-    <g className="message" data-idx={idx}>
+    <g className="message" data-idx={idx} data-id={node.id}
+      style={{ cursor: "pointer" }}>
+      {/* Interactive hover/select bounding box */}
+      <rect x={Math.min(x1, x2)} y={y} width={Math.abs(x2 - x1)} height={rowH} fill={isSelected ? "rgba(255,255,255,0.1)" : "transparent"} className="message-hover-rect" />
+
       {lines.map((l, i) => l ? (
         <text key={i}
           x={mid} y={y + MSG_LABEL_OFF + i * MSG_LINE_H}
@@ -705,8 +845,11 @@ function selfMessageH(lines: string[]): number {
   return labelH + SELF_LOOP_H + 8;
 }
 
-function SelfArrow({ cx, y, dashed, rawLabel, autoNum, idx, arrowBack }:
-  { cx: number; y: number; dashed: boolean; rawLabel: string; autoNum: number | null; idx: number; arrowBack: boolean }) {
+function SelfArrow({ cx, y, dashed, rawLabel, autoNum, idx, arrowBack, node }:
+  { cx: number; y: number; dashed: boolean; rawLabel: string; autoNum: number | null; idx: number; arrowBack: boolean; node: MessageNode }) {
+
+  const { selectedNodeId } = useDiagram();
+  const isSelected = selectedNodeId === node.id;
 
   const rawLines = rawLabel ? rawLabel.split("\\n") : [];
   const lines = [...rawLines];
@@ -726,7 +869,10 @@ function SelfArrow({ cx, y, dashed, rawLabel, autoNum, idx, arrowBack }:
   // arrowBack=false (<-):  top exits lifeline right with arrowhead, loops around, bottom returns left (no arrowhead)
   // Both look like a rectangle; difference is which end has the arrowhead
   return (
-    <g className="message message-self" data-idx={idx}>
+    <g className="message message-self" data-idx={idx} data-id={node.id} style={{ cursor: "pointer" }}>
+      {/* Interactive hover/select bounding box */}
+      <rect x={cx} y={y} width={SELF_LOOP_W + 36} height={loopBot - y} fill={isSelected ? "rgba(255,255,255,0.1)" : "transparent"} className="message-hover-rect" />
+
       {lines.map((l, i) => l ? (
         <text key={i}
           x={labelX} y={y + MSG_LABEL_OFF + i * MSG_LINE_H}
@@ -778,15 +924,17 @@ function noteW(lines: string[]): number {
   return Math.max(80, longest.length * 6.6 + NOTE_PAD_H * 2 + 14);
 }
 
-function NoteBoxSvg({ x, y, lines, color, w: wOverride }: { x: number; y: number; lines: string[]; color: string | null; w?: number }) {
+function NoteBoxSvg({ x, y, lines, color, w: wOverride, node }: { x: number; y: number; lines: string[]; color: string | null; w?: number; node: NoteNode }) {
+  const { selectedNodeId } = useDiagram();
+  const isSelected = selectedNodeId === node.id;
   const { bg, border, text } = resolveNoteColor(color);
   const w = wOverride ?? noteW(lines), h = noteH(lines), FOLD = 10;
   const pts = `${x},${y} ${x + w - FOLD},${y} ${x + w},${y + FOLD} ${x + w},${y + h} ${x},${y + h}`;
   return (
-    <g className="note">
-      <polygon points={pts} fill={bg} stroke={border} strokeWidth={1} className="note-body" />
+    <g className="note" data-id={node.id} style={{ cursor: "pointer" }}>
+      <polygon points={pts} fill={bg} stroke={isSelected ? "#fff" : border} strokeWidth={isSelected ? 2 : 1} className="note-body" />
       <polyline points={`${x + w - FOLD},${y} ${x + w - FOLD},${y + FOLD} ${x + w},${y + FOLD}`}
-        fill="none" stroke={border} strokeWidth={1} opacity={0.6} className="note-fold" />
+        fill="none" stroke={isSelected ? "#fff" : border} strokeWidth={isSelected ? 2 : 1} opacity={0.6} className="note-fold" />
       {lines.map((l, i) => (
         <text key={i} x={x + NOTE_PAD_H} y={y + NOTE_PAD_V / 2 + NOTE_FONT + i * NOTE_LINE_H}
           fontSize={NOTE_FONT} fill={text} className="note-line">{l || " "}</text>
@@ -796,11 +944,16 @@ function NoteBoxSvg({ x, y, lines, color, w: wOverride }: { x: number; y: number
 }
 
 // ── Divider ───────────────────────────────────────────────────────────────────
-function DiagramDivider({ x1, y, x2, label }: { x1: number; y: number; x2: number; label: string }) {
+function DiagramDivider({ x1, y, x2, label, node }: { x1: number; y: number; x2: number; label: string; node: DividerNode }) {
+  const { selectedNodeId } = useDiagram();
+  const isSelected = selectedNodeId === node.id;
   const cy = y + DIVIDER_H / 2, tw = label.length * 7.2 + 22, mid = (x1 + x2) / 2;
   const lx = mid - tw / 2 - 8, rx = mid + tw / 2 + 8;
   return (
-    <g className="divider">
+    <g className="divider" data-id={node.id} style={{ cursor: "pointer" }}>
+      {/* Interactive hover/select bounding box */}
+      <rect x={mid - tw / 2 - 20} y={cy - 12} width={tw + 40} height={24} fill={isSelected ? "rgba(255,255,255,0.1)" : "transparent"} />
+
       <line x1={x1} y1={cy - 2} x2={lx} y2={cy - 2} stroke={C.dividerLine} strokeWidth={1.5} />
       <line x1={x1} y1={cy + 2} x2={lx} y2={cy + 2} stroke={C.dividerLine} strokeWidth={1.5} />
       <rect x={mid - tw / 2} y={cy - 11} width={tw} height={22} fill={C.surface}
@@ -816,14 +969,15 @@ function DiagramDivider({ x1, y, x2, label }: { x1: number; y: number; x2: numbe
 // ── Block header bar ──────────────────────────────────────────────────────────
 // FIX #2: block rects use solid fills so they paint over the lifeline dashes.
 // The lifeline shows through the transparent body area but is hidden under headers.
-function BlockHeader({ x, y, w, keyword, condition, stroke, headerFill, labelColor }:
+function BlockHeader({ x, y, w, keyword, condition, stroke, headerFill, labelColor, nodeId }:
   {
     x: number; y: number; w: number; keyword: string; condition: string;
-    stroke: string; headerFill: string; labelColor: string
+    stroke: string; headerFill: string; labelColor: string;
+    nodeId?: string;
   }) {
   const tagW = keyword.length * 7.5 + 16;
   return (
-    <g className={`block-header block-header-${keyword}`}>
+    <g className={`block-header block-header-${keyword}`} data-id={nodeId} style={nodeId ? { cursor: "pointer" } : undefined}>
       {/* Solid background covers lifeline under header */}
       <rect x={x} y={y} width={w} height={BLOCK_HDR_H}
         fill={C.surface} stroke="none" rx={3} />
@@ -942,7 +1096,7 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
             cx={fromX} y={y}
             dashed={s.arrow.includes("--")}
             rawLabel={s.label} autoNum={s.autoNum} idx={s.idx}
-            arrowBack={true} />,
+            arrowBack={true} node={s} />,
           h,
         };
       }
@@ -955,7 +1109,7 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
         node: <MessageArrow key={`msg-${s.idx}`}
           x1={x1} y={y} x2={x2}
           dashed={s.arrow.includes("--")}
-          rawLabel={s.label} autoNum={s.autoNum} idx={s.idx} />,
+          rawLabel={s.label} autoNum={s.autoNum} idx={s.idx} node={s} />,
         h,
       };
     }
@@ -989,7 +1143,7 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
 
       const noteBottom = ny + nh + 4;
       return {
-        node: <NoteBoxSvg key={`note-${y}`} x={nx} y={ny} w={s.position === "across" ? nw : undefined} lines={s.lines} color={s.color} />,
+        node: <NoteBoxSvg key={`note-${y}`} x={nx} y={ny} w={s.position === "across" ? nw : undefined} lines={s.lines} color={s.color} node={s} />,
         h: s.position === "left" || s.position === "right"
           ? Math.max(0, noteBottom - y)   // only consume space if note extends past current y
           : nh + 8,
@@ -998,7 +1152,7 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
 
     case "DIVIDER": {
       return {
-        node: <DiagramDivider key={`div-${y}`} x1={bx1} y={y} x2={bx2} label={s.label} />,
+        node: <DiagramDivider key={`div-${y}`} x1={bx1} y={y} x2={bx2} label={s.label} node={s} />,
         h: DIVIDER_H,
       };
     }
@@ -1014,7 +1168,7 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
           <BlockHeader key={`alt-hdr-${bi}`} x={bx1} y={cy} w={bw}
             keyword={kw} condition={cond} stroke={C.altBorder}
             headerFill={isFirst ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.02)"}
-            labelColor={C.altLabel} />
+            labelColor={C.altLabel} nodeId={`${s.id}:${bi}`} />
         );
         cy += BLOCK_HDR_H + BLOCK_PAD_Y;
         const inner = drawBlock(branch.statements, cy, ctx, depth + 1);
@@ -1028,13 +1182,15 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
         }
       });
       const totalH = cy - y;
+      const { selectedNodeId } = useDiagram();
+      const isSelected = selectedNodeId === s.id;
       return {
         node: (
           <g key={`alt-${y}`} className="alt-block">
             <rect x={bx1} y={y} width={bw} height={totalH} fill={C.altBg} stroke="none" rx={3} />
             {elems}
             <rect x={bx1} y={y} width={bw} height={totalH} fill="none"
-              stroke={C.altBorder} strokeWidth={1.5} rx={3} className="alt-border" />
+              stroke={isSelected ? "#fff" : C.altBorder} strokeWidth={isSelected ? 2 : 1.5} rx={3} className="alt-border" />
           </g>
         ),
         h: totalH,
@@ -1044,13 +1200,15 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
     case "GROUP_BLOCK": {
       const inner = drawBlock(s.statements, y + BLOCK_HDR_H + BLOCK_PAD_Y, ctx, depth + 1);
       const totalH = BLOCK_HDR_H + inner.h + BLOCK_PAD_Y;
+      const { selectedNodeId } = useDiagram();
+      const isSelected = selectedNodeId === s.id;
       return {
         node: (
           <g key={`grp-${y}`} className="group-block">
             <rect x={bx1} y={y} width={bw} height={totalH}
-              fill={C.groupBg} stroke={C.groupBorder} strokeWidth={1.5} rx={3} />
+              fill={C.groupBg} stroke={isSelected ? "#fff" : C.groupBorder} strokeWidth={isSelected ? 2 : 1.5} rx={3} />
             <BlockHeader x={bx1} y={y} w={bw} keyword="group" condition={s.label}
-              stroke={C.groupBorder} headerFill="rgba(99,102,241,0.12)" labelColor={C.groupLabel} />
+              stroke={C.groupBorder} headerFill="rgba(99,102,241,0.12)" labelColor={C.groupLabel} nodeId={s.id} />
             {inner.nodes}
           </g>
         ),
@@ -1062,13 +1220,15 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
       const inner = drawBlock(s.statements, y + BLOCK_HDR_H + BLOCK_PAD_Y, ctx, depth + 1);
       const totalH = BLOCK_HDR_H + inner.h + BLOCK_PAD_Y;
       const ix = bx1 + bw - 18, iy = y + BLOCK_HDR_H / 2;
+      const { selectedNodeId } = useDiagram();
+      const isSelected = selectedNodeId === s.id;
       return {
         node: (
           <g key={`loop-${y}`} className="loop-block">
             <rect x={bx1} y={y} width={bw} height={totalH}
-              fill={C.loopBg} stroke={C.loopBorder} strokeWidth={1.5} rx={3} />
+              fill={C.loopBg} stroke={isSelected ? "#fff" : C.loopBorder} strokeWidth={isSelected ? 2 : 1.5} rx={3} />
             <BlockHeader x={bx1} y={y} w={bw} keyword="loop" condition={s.label}
-              stroke={C.loopBorder} headerFill="rgba(52,211,153,0.08)" labelColor={C.loopLabel} />
+              stroke={C.loopBorder} headerFill="rgba(52,211,153,0.08)" labelColor={C.loopLabel} nodeId={s.id} />
             <path d={`M${ix} ${iy - 5} A5 5 0 1 1 ${ix - 5} ${iy}`}
               stroke={C.loopLabel} strokeWidth={1.5} fill="none" className="loop-icon-arc" />
             <polygon points={`${ix - 5},${iy - 8} ${ix - 9},${iy} ${ix - 1},${iy}`}
@@ -1310,6 +1470,37 @@ function SequenceDiagram({ ast }: { ast: DiagramAST }) {
     y2: footerY + PART_H / 2 - shapeTopOffset(p.kind, !!p.stereoType),
   }));
 
+  const { setSelectedNodeId, setClickPosition } = useDiagram();
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | SVGElement;
+      const clickable = target.closest('[data-id]');
+
+      if (clickable) {
+        const id = clickable.getAttribute('data-id');
+        if (id) {
+          setSelectedNodeId(id);
+          const rect = clickable.getBoundingClientRect();
+          setClickPosition({
+            x: rect.left + rect.width / 2,
+            y: rect.top
+          });
+          return;
+        }
+      }
+
+      const svg = target.closest('svg.sequence-diagram');
+      if (svg && !clickable) {
+        setSelectedNodeId(null);
+        setClickPosition(null);
+      }
+    };
+
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [setSelectedNodeId, setClickPosition]);
+
   return (
     <svg
       width={totalW}
@@ -1347,7 +1538,7 @@ function SequenceDiagram({ ast }: { ast: DiagramAST }) {
       <g className="participants-header">
         {participants.map((p, i) => (
           <ParticipantShape key={p.alias} kind={p.kind} name={p.name}
-            cx={shiftedCenters[i]} cy={headerPartCY} stroke={C.accent} stereoType={p.stereoType} fill={p.color} />
+            cx={shiftedCenters[i]} cy={headerPartCY} stroke={C.accent} stereoType={p.stereoType} fill={p.color} dataId={`participant:${p.alias}`} />
         ))}
       </g>
 
@@ -1360,7 +1551,7 @@ function SequenceDiagram({ ast }: { ast: DiagramAST }) {
       <g className="participants-footer">
         {participants.map((p, i) => (
           <ParticipantShape key={p.alias} kind={p.kind} name={p.name}
-            cx={shiftedCenters[i]} cy={footerY + PART_H / 2} stroke={C.accent} stereoType={p.stereoType} fill={p.color} />
+            cx={shiftedCenters[i]} cy={footerY + PART_H / 2} stroke={C.accent} stereoType={p.stereoType} fill={p.color} dataId={`participant:${p.alias}`} />
         ))}
       </g>
     </svg>
@@ -1385,6 +1576,454 @@ const SAMPLES: { label: string; code: string }[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Interactivity Context & Hooks
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface DiagramContextType {
+  code: string;
+  updateCode: (code: string) => void;
+  ast: DiagramAST | null;
+  selectedNodeId: string | null;
+  setSelectedNodeId: (id: string | null) => void;
+  clickPosition: { x: number, y: number } | null;
+  setClickPosition: (pos: { x: number, y: number } | null) => void;
+  actions: {
+    deleteNode: (id: string) => void;
+    editNodeLabel: (id: string, newLabel: string, branchIdx?: number) => void;
+    createMessage: (targetId: string, position: "after" | "inside", branchIdx?: number) => void;
+    createElse: (altId: string, branchIdx: number) => void;
+    deleteElse: (altId: string, branchIdx: number) => void;
+    createParticipant: (targetAlias: string) => void;
+    editParticipant: (alias: string, newDeclStr: string) => void;
+    deleteParticipant: (alias: string) => void;
+    moveParticipant: (alias: string, direction: "left" | "right") => void;
+  };
+}
+
+const DiagramContext = createContext<DiagramContextType | null>(null);
+
+export function useDiagram() {
+  const ctx = useContext(DiagramContext);
+  if (!ctx) throw new Error("useDiagram must be used within DiagramProvider");
+  return ctx;
+}
+
+export function useDiagramActions() {
+  return useDiagram().actions;
+}
+
+function DiagramProvider({ children, code, updateCode, ast }: { children: React.ReactNode, code: string, updateCode: (c: string) => void, ast: DiagramAST | null }) {
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [clickPosition, setClickPosition] = useState<{ x: number, y: number } | null>(null);
+
+  const actions = {
+    deleteNode: (id: string) => {
+      if (!ast) return;
+      function filterStmts(stmts: StatementNode[]): StatementNode[] {
+        return stmts.filter(s => {
+          if (s.type === "ALT_BLOCK") {
+            if (s.id === id) return false;
+            s.branches.forEach(b => b.statements = filterStmts(b.statements));
+          } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
+            if (s.id === id) return false;
+            s.statements = filterStmts(s.statements);
+          } else if (s.type === "NOTE" || s.type === "DIVIDER" || s.type === "MESSAGE") {
+            if (s.id === id) return false;
+          }
+          return true;
+        });
+      }
+      const newAst = { ...ast, statements: filterStmts([...ast.statements]) };
+      updateCode(astToString(newAst));
+      setSelectedNodeId(null);
+      setClickPosition(null);
+    },
+
+    editNodeLabel: (id: string, newLabel: string, branchIdx?: number) => {
+      if (!ast) return;
+      const newStmts = JSON.parse(JSON.stringify(ast.statements)); // quick deep clone
+      function edit(stmts: any[]): boolean {
+        for (const s of stmts) {
+          if (s.id === id) {
+            if (s.type === "MESSAGE") {
+              const msgM = newLabel.match(/^(\S+)\s*(->|<-|-->|<--)\s*(\S+)\s*:\s*(.+)$/);
+              if (msgM) {
+                s.from = msgM[1]; s.arrow = msgM[2] as ArrowType; s.to = msgM[3]; s.label = msgM[4].trim();
+              } else {
+                const msgNoLabel = newLabel.match(/^(\S+)\s*(->|<-|-->|<--)\s*(\S+)\s*$/);
+                if (msgNoLabel) {
+                  s.from = msgNoLabel[1]; s.arrow = msgNoLabel[2] as ArrowType; s.to = msgNoLabel[3]; s.label = "";
+                } else {
+                  s.label = newLabel;
+                }
+              }
+            }
+            else if (s.type === "DIVIDER") s.label = newLabel;
+            else if (s.type === "NOTE") s.lines = newLabel.split("\\n");
+            else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") s.label = newLabel;
+            else if (s.type === "ALT_BLOCK") {
+              if (branchIdx !== undefined && s.branches[branchIdx]) {
+                s.branches[branchIdx].condition = newLabel;
+              }
+            }
+            return true;
+          }
+          if (s.type === "ALT_BLOCK") {
+            for (const b of s.branches) if (edit(b.statements)) return true;
+          } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
+            if (edit(s.statements)) return true;
+          }
+        }
+        return false;
+      }
+      edit(newStmts);
+      updateCode(astToString({ ...ast, statements: newStmts }));
+    },
+
+    createMessage: (targetId: string, position: "after" | "inside", branchIdx?: number) => {
+      if (!ast) return;
+      const newStmts = JSON.parse(JSON.stringify(ast.statements));
+      const p1 = ast.participants[0]?.alias || "A";
+      const p2 = ast.participants[1]?.alias || p1;
+      const newMsg = { type: "MESSAGE", id: genId(), from: p1, to: p2, arrow: "->", label: "new message", autoNum: null, idx: -1 };
+
+      function insert(stmts: any[]): boolean {
+        const idx = stmts.findIndex(s => s.id === targetId);
+        if (idx !== -1 && position === "after") {
+          stmts.splice(idx + 1, 0, newMsg);
+          return true;
+        }
+        for (const s of stmts) {
+          if (s.id === targetId && position === "inside") {
+            if (s.type === "ALT_BLOCK") {
+              if (branchIdx !== undefined && s.branches[branchIdx]) {
+                s.branches[branchIdx].statements.push(newMsg);
+                return true;
+              }
+            } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
+              s.statements.push(newMsg);
+              return true;
+            }
+          }
+          if (s.type === "ALT_BLOCK") {
+            for (const b of s.branches) if (insert(b.statements)) return true;
+          } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
+            if (insert(s.statements)) return true;
+          }
+        }
+        return false;
+      }
+      insert(newStmts);
+      updateCode(astToString({ ...ast, statements: newStmts }));
+    },
+
+    createElse: (altId: string, branchIdx: number) => {
+      if (!ast) return;
+      const newStmts = JSON.parse(JSON.stringify(ast.statements));
+      function addElse(stmts: any[]): boolean {
+        for (const s of stmts) {
+          if (s.id === altId && s.type === "ALT_BLOCK") {
+            s.branches.splice(branchIdx + 1, 0, { condition: "", statements: [] });
+            return true;
+          }
+          if (s.type === "ALT_BLOCK") {
+            for (const b of s.branches) if (addElse(b.statements)) return true;
+          } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
+            if (addElse(s.statements)) return true;
+          }
+        }
+        return false;
+      }
+      addElse(newStmts);
+      updateCode(astToString({ ...ast, statements: newStmts }));
+    },
+
+    deleteElse: (altId: string, branchIdx: number) => {
+      if (!ast) return;
+      const newStmts = JSON.parse(JSON.stringify(ast.statements));
+      function delElse(stmts: any[]): boolean {
+        for (const s of stmts) {
+          if (s.id === altId && s.type === "ALT_BLOCK") {
+            s.branches.splice(branchIdx, 1);
+            return true;
+          }
+          if (s.type === "ALT_BLOCK") {
+            for (const b of s.branches) if (delElse(b.statements)) return true;
+          } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
+            if (delElse(s.statements)) return true;
+          }
+        }
+        return false;
+      }
+      delElse(newStmts);
+      updateCode(astToString({ ...ast, statements: newStmts }));
+    },
+
+    createParticipant: (targetAlias: string) => {
+      if (!ast) return;
+      const idx = ast.participants.findIndex(p => p.alias === targetAlias);
+      if (idx === -1) return;
+      const newAlias = "NewPart_" + genId().substring(0, 4);
+      const newP = { alias: newAlias, name: "New Participant", kind: "participant" };
+      const newAst = JSON.parse(JSON.stringify(ast));
+      newAst.participants.splice(idx + 1, 0, newP);
+      updateCode(astToString(newAst));
+    },
+
+    editParticipant: (alias: string, newDeclStr: string) => {
+      if (!ast) return;
+      const t = tokenizeLine(newDeclStr);
+      if (t && t.type === "DECLARATION") {
+        const newAlias = t.alias;
+        const newAst = JSON.parse(JSON.stringify(ast));
+        const pIdx = newAst.participants.findIndex((p: Participant) => p.alias === alias);
+        if (pIdx !== -1) {
+          newAst.participants[pIdx] = { ...newAst.participants[pIdx], kind: t.kind, name: t.name, alias: t.alias, stereoType: t.stereoType, color: t.color };
+        }
+        if (newAlias !== alias) {
+          function rename(stmts: any[]) {
+            stmts.forEach(s => {
+              if (s.type === "MESSAGE") {
+                if (s.from === alias) s.from = newAlias;
+                if (s.to === alias) s.to = newAlias;
+              } else if (s.type === "NOTE") {
+                if (s.p1 === alias) s.p1 = newAlias;
+                if (s.p2 === alias) s.p2 = newAlias;
+              }
+              if (s.type === "ALT_BLOCK") s.branches.forEach((b: any) => rename(b.statements));
+              if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") rename(s.statements);
+            });
+          }
+          rename(newAst.statements);
+        }
+        updateCode(astToString(newAst));
+      }
+    },
+
+    deleteParticipant: (alias: string) => {
+      if (!ast) return;
+      const newAst = JSON.parse(JSON.stringify(ast));
+      newAst.participants = newAst.participants.filter((p: Participant) => p.alias !== alias);
+      function filterRefStmts(stmts: any[]): any[] {
+        return stmts.filter(s => {
+          if (s.type === "MESSAGE" && (s.from === alias || s.to === alias)) return false;
+          if (s.type === "NOTE" && (s.p1 === alias || s.p2 === alias)) return false;
+          if (s.type === "ALT_BLOCK") {
+            s.branches.forEach((b: any) => b.statements = filterRefStmts(b.statements));
+            return s.branches.some((b: any) => b.statements.length > 0) || s.branches.length > 0;
+          }
+          if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
+            s.statements = filterRefStmts(s.statements);
+          }
+          return true;
+        });
+      }
+      newAst.statements = filterRefStmts(newAst.statements);
+      updateCode(astToString(newAst));
+      setSelectedNodeId(null);
+      setClickPosition(null);
+    },
+
+    moveParticipant: (alias: string, direction: "left" | "right") => {
+      if (!ast) return;
+      const idx = ast.participants.findIndex(p => p.alias === alias);
+      if (idx === -1) return;
+      const newAst = JSON.parse(JSON.stringify(ast));
+
+      // Also check if they are in directAliases of a box and swap there if applicable
+      function swapInArr(arr: any[], i1: number, i2: number) {
+        if (i1 >= 0 && i2 >= 0 && i1 < arr.length && i2 < arr.length) {
+          [arr[i1], arr[i2]] = [arr[i2], arr[i1]];
+        }
+      }
+
+      if (direction === "left" && idx > 0) {
+        swapInArr(newAst.participants, idx, idx - 1);
+      } else if (direction === "right" && idx < newAst.participants.length - 1) {
+        swapInArr(newAst.participants, idx, idx + 1);
+      }
+      updateCode(astToString(newAst));
+    }
+  };
+
+  return (
+    <DiagramContext.Provider value={{ code, updateCode, ast, selectedNodeId, setSelectedNodeId, clickPosition, setClickPosition, actions }}>
+      {children}
+    </DiagramContext.Provider>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Diagram Actions UI
+// ─────────────────────────────────────────────────────────────────────────────
+
+function findNodeById(ast: DiagramAST, id: string): StatementNode | null {
+  const baseId = id.split(":")[0];
+  function searchStmts(stmts: StatementNode[]): StatementNode | null {
+    for (const s of stmts) {
+      if (s.id === baseId) return s;
+      if (s.type === "ALT_BLOCK") {
+        for (const b of s.branches) {
+          const found = searchStmts(b.statements);
+          if (found) return found;
+        }
+      } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
+        const found = searchStmts(s.statements);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  return searchStmts(ast.statements);
+}
+
+function DiagramActions() {
+  const { ast, selectedNodeId, clickPosition, actions } = useDiagram();
+  if (!ast || !selectedNodeId || !clickPosition) return null;
+
+  if (selectedNodeId.startsWith("participant:")) {
+    const alias = selectedNodeId.split(":")[1];
+    const p = ast.participants.find(x => x.alias === alias);
+    if (!p) return null;
+    let s = `${p.kind} "${p.name}" as ${p.alias}`;
+    if (p.name === p.alias && !p.name.includes(" ")) s = `${p.kind} ${p.name}`;
+    if (p.stereoType) s += ` <<${p.stereoType}>>`;
+    if (p.color) s += ` ${p.color}`;
+
+    return (
+      <div style={{
+        position: "fixed", left: clickPosition.x, top: clickPosition.y - 8,
+        background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
+        padding: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.5)", zIndex: 100,
+        width: 200, transform: "translate(-50%, -100%)"
+      }}>
+        <div style={{ fontSize: 12, fontWeight: "bold", marginBottom: 8, color: C.text, textAlign: "center" }}>
+          Participant Actions
+        </div>
+        <div style={{ fontSize: 10, color: C.muted, marginBottom: 12, wordBreak: "break-all", textAlign: "center" }}>
+          <span>{s}</span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <ActionButton onClick={() => actions.createParticipant(alias)} label="Create participant" />
+          <ActionButton onClick={() => {
+            const str = window.prompt("Edit participant:", s);
+            if (str !== null) actions.editParticipant(alias, str);
+          }} label="Edit participant" />
+          <div style={{ display: "flex", gap: 6 }}>
+            <div style={{ flex: 1 }}><ActionButton onClick={() => actions.moveParticipant(alias, "left")} label="Move Left" /></div>
+            <div style={{ flex: 1 }}><ActionButton onClick={() => actions.moveParticipant(alias, "right")} label="Move Right" /></div>
+          </div>
+          <ActionButton onClick={() => actions.deleteParticipant(alias)} label="Delete participant" danger />
+        </div>
+      </div>
+    );
+  }
+
+  const [baseId, branchIdxStr] = selectedNodeId.split(":");
+  const branchIdx = branchIdxStr !== undefined ? parseInt(branchIdxStr, 10) : undefined;
+
+  const node = findNodeById(ast, baseId);
+  if (!node) return null;
+
+  let title = "Node";
+  if (node.type === "MESSAGE") title = "Message";
+  if (node.type === "NOTE") title = "Note";
+  if (node.type === "DIVIDER") title = "Divider";
+  if (node.type === "ALT_BLOCK") title = "Alt Block";
+  if (node.type === "GROUP_BLOCK") title = "Group Block";
+  if (node.type === "LOOP_BLOCK") title = "Loop Block";
+  if (node.type === "BOX_DECL") title = "Box Declaration";
+
+  // Position popover at top center of element
+  // The global click listener gives us x = center, y = top of bounding box
+  return (
+    <div style={{
+      position: "fixed", left: clickPosition.x, top: clickPosition.y - 8,
+      background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
+      padding: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.5)", zIndex: 100,
+      width: 200, transform: "translate(-50%, -100%)"
+    }}>
+      <div style={{ fontSize: 12, fontWeight: "bold", marginBottom: 8, color: C.text, textAlign: "center" }}>
+        {title} Actions
+      </div>
+      {/* Node specifics for preview */}
+      <div style={{ fontSize: 10, color: C.muted, marginBottom: 12, wordBreak: "break-all", textAlign: "center" }}>
+        {node.type === "MESSAGE" && <span>{node.from} ➔ {node.to}</span>}
+        {node.type === "NOTE" && <span>{node.position} {[node.p1, node.p2].filter(Boolean).join(", ")}</span>}
+        {(node.type === "GROUP_BLOCK" || node.type === "LOOP_BLOCK") && <span>{node.label || "(no label)"}</span>}
+        {node.type === "ALT_BLOCK" && <span>{node.branches.map(b => b.condition).join(" / ")}</span>}
+        {node.type === "DIVIDER" && <span>{node.label}</span>}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {node.type === "MESSAGE" && (
+          <>
+            <ActionButton onClick={() => actions.createMessage(baseId, "after")} label="Create Message" />
+            <ActionButton onClick={() => {
+              const currentStr = node.label ? `${node.from} ${node.arrow} ${node.to}: ${node.label}` : `${node.from} ${node.arrow} ${node.to}`;
+              const newStr = window.prompt("Edit message:", currentStr);
+              if (newStr !== null) actions.editNodeLabel(baseId, newStr);
+            }} label="Edit Message" />
+            <ActionButton onClick={() => actions.deleteNode(baseId)} label="Delete Message" danger />
+          </>
+        )}
+
+        {node.type === "ALT_BLOCK" && branchIdx !== undefined && node.branches[branchIdx] && (
+          <>
+            <div style={{ fontSize: 10, color: C.muted, marginBottom: 4, borderLeft: `2px solid ${C.border}`, paddingLeft: 6, textAlign: "left" }}>
+              {branchIdx === 0 ? "Alt:" : "Else:"} {node.branches[branchIdx].condition || "(empty)"}
+            </div>
+            <ActionButton onClick={() => {
+              const newCond = window.prompt(`Edit ${branchIdx === 0 ? "alt" : "else"} condition:`, node.branches[branchIdx].condition);
+              if (newCond !== null) actions.editNodeLabel(baseId, newCond, branchIdx);
+            }} label="Edit condition" />
+            <ActionButton onClick={() => actions.createMessage(baseId, "inside", branchIdx)} label="Create message" />
+            <ActionButton onClick={() => actions.createElse(baseId, branchIdx)} label="Create else" />
+            {branchIdx > 0 ? (
+              <ActionButton onClick={() => actions.deleteElse(baseId, branchIdx)} label="Delete else" danger />
+            ) : (
+              <ActionButton onClick={() => actions.deleteNode(baseId)} label="Delete alt" danger />
+            )}
+          </>
+        )}
+
+        {node.type === "LOOP_BLOCK" && (
+          <>
+            <ActionButton onClick={() => actions.createMessage(baseId, "inside")} label="Create new message" />
+            <ActionButton onClick={() => {
+              const newLabel = window.prompt("Edit loop:", node.label);
+              if (newLabel !== null) actions.editNodeLabel(baseId, newLabel);
+            }} label="Edit loop" />
+            <ActionButton onClick={() => actions.deleteNode(baseId)} label="Delete loop" danger />
+          </>
+        )}
+
+        {/* Fallback for others */}
+        {node.type !== "MESSAGE" && node.type !== "ALT_BLOCK" && node.type !== "LOOP_BLOCK" && (
+          <ActionButton onClick={() => actions.deleteNode(baseId)} label={`Delete ${title}`} danger />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ActionButton({ onClick, label, danger }: { onClick: () => void, label: string, danger?: boolean }) {
+  const bg = danger ? "#4f1616" : "rgba(255,255,255,0.05)";
+  const color = danger ? "#fca5a5" : C.text;
+  const border = danger ? "#7f1d1d" : C.border;
+  return (
+    <button onClick={onClick}
+      style={{
+        background: bg, color: color, border: `1px solid ${border}`,
+        padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 11,
+        textAlign: "center"
+      }}>
+      {label}
+    </button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // App.tsx
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1401,127 +2040,135 @@ export default function App() {
   }, [input]);
 
   return (
-    <div style={{
-      ...(THEMES.dark as React.CSSProperties),
-      minHeight: "100vh", background: C.bg, color: C.text,
-      fontFamily: "'JetBrains Mono','Fira Code',monospace", padding: 20, boxSizing: "border-box"
-    }}>
-
-      <div style={{ marginBottom: 14, borderBottom: `1px solid ${C.border}`, paddingBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-          <h1 style={{ margin: 0, fontSize: 17, color: C.accent }}>PlantUML Sequence Viewer</h1>
-          <span style={{
-            fontSize: 10, color: C.muted, background: C.surface,
-            border: `1px solid ${C.border}`, borderRadius: 4, padding: "2px 8px"
-          }}>
-            SVG · dynamic column width · lifeline touch · notes · dividers · alt · group · loop · box
-          </span>
-        </div>
-      </div>
-
-      {/* Shape legend */}
+    <DiagramProvider code={input} updateCode={setInput} ast={ast}>
       <div style={{
-        background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
-        padding: "8px 16px", marginBottom: 14, overflowX: "auto"
+        ...(THEMES.dark as React.CSSProperties),
+        minHeight: "100vh", background: C.bg, color: C.text,
+        fontFamily: "'JetBrains Mono','Fira Code',monospace", padding: 20, boxSizing: "border-box"
       }}>
-        <svg height={90} width={PARTICIPANT_KINDS.length * 130}
-          style={{ fontFamily: "'JetBrains Mono',monospace", display: "block" }}>
-          {PARTICIPANT_KINDS.map((k, i) => (
-            <ParticipantShape key={k} kind={k}
-              name={k === "participant" ? "Participant" : k.charAt(0).toUpperCase() + k.slice(1)}
-              cx={65 + i * 130} cy={46} stroke={C.accent} />
-          ))}
-        </svg>
-      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: 20 }}>
-        <div>
-          <div style={{ display: "flex", gap: 5, marginBottom: 8, flexWrap: "wrap" }}>
-            {SAMPLES.map(({ label, code }) => (
-              <button key={label} onClick={() => setInput(code)}
-                style={{
-                  background: C.surface, border: `1px solid ${C.border}`,
-                  color: C.text, borderRadius: 5, padding: "3px 9px",
-                  fontSize: 10, cursor: "pointer", fontFamily: "inherit"
-                }}>{label}</button>
-            ))}
-          </div>
-          <textarea value={input} onChange={e => setInput(e.target.value)} spellCheck={false}
-            style={{
-              width: "100%", height: 440, background: C.surface,
-              border: `1px solid ${C.border}`, borderRadius: 8, color: C.text,
-              fontFamily: "inherit", fontSize: 12, lineHeight: 1.7,
-              padding: 14, resize: "vertical", outline: "none", boxSizing: "border-box"
-            }} />
-          {error && <div style={{
-            marginTop: 8, background: "#2d1515", border: "1px solid #f47067",
-            borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "#f47067"
-          }}>⚠ {error}</div>}
-          {ast?.errors && ast.errors.length > 0 && (
-            <div style={{
-              marginTop: 8, background: "#2d1515", border: "1px solid #f47067",
-              borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "#f47067",
-              maxHeight: 150, overflowY: "auto"
+        <div style={{ marginBottom: 14, borderBottom: `1px solid ${C.border}`, paddingBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+            <h1 style={{ margin: 0, fontSize: 17, color: C.accent }}>PlantUML Sequence Viewer</h1>
+            <span style={{
+              fontSize: 10, color: C.muted, background: C.surface,
+              border: `1px solid ${C.border}`, borderRadius: 4, padding: "2px 8px"
             }}>
-              <div style={{ fontWeight: "bold", marginBottom: 6 }}>⚠ Unsupported Syntax:</div>
-              {ast.errors.map((e, i) => (
-                <div key={i} style={{ fontFamily: "monospace", marginTop: 2 }}>
-                  Line {e.line}: <span style={{ opacity: 0.8 }}>{e.text.trim()}</span>
-                </div>
-              ))}
-            </div>
-          )}
+              SVG · dynamic column width · lifeline touch · notes · dividers · alt · group · loop · box
+            </span>
+          </div>
         </div>
 
-        <div>
-          <div style={{ display: "flex", gap: 4, marginBottom: 10, justifyContent: "space-between" }}>
-            <div style={{ display: "flex", gap: 4 }}>
-              {(["diagram", "ast"] as const).map(t => (
-                <button key={t} onClick={() => setTab(t)}
+        {/* Shape legend */}
+        <div style={{
+          background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
+          padding: "8px 16px", marginBottom: 14, overflowX: "auto"
+        }}>
+          <svg height={90} width={PARTICIPANT_KINDS.length * 130}
+            style={{ fontFamily: "'JetBrains Mono',monospace", display: "block" }}>
+            {PARTICIPANT_KINDS.map((k, i) => (
+              <ParticipantShape key={k} kind={k}
+                name={k === "participant" ? "Participant" : k.charAt(0).toUpperCase() + k.slice(1)}
+                cx={65 + i * 130} cy={46} stroke={C.accent} />
+            ))}
+          </svg>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: 20 }}>
+          <div>
+            <div style={{ display: "flex", gap: 5, marginBottom: 8, flexWrap: "wrap" }}>
+              {SAMPLES.map(({ label, code }) => (
+                <button key={label} onClick={() => setInput(code)}
                   style={{
-                    background: tab === t ? C.accent : C.surface, color: tab === t ? C.bg : C.muted,
-                    border: `1px solid ${tab === t ? C.accent : C.border}`, borderRadius: 6,
-                    padding: "4px 14px", fontSize: 10, cursor: "pointer",
-                    fontWeight: tab === t ? "bold" : "normal",
-                    textTransform: "uppercase", letterSpacing: 1, fontFamily: "inherit"
-                  }}>{t}</button>
+                    background: C.surface, border: `1px solid ${C.border}`,
+                    color: C.text, borderRadius: 5, padding: "3px 9px",
+                    fontSize: 10, cursor: "pointer", fontFamily: "inherit"
+                  }}>{label}</button>
               ))}
             </div>
-
-            <button onClick={() => setDiagramTheme(diagramTheme === "dark" ? "light" : "dark")}
+            <textarea value={input} onChange={e => setInput(e.target.value)} spellCheck={false}
               style={{
-                background: C.surface, color: C.text,
-                border: `1px solid ${C.border}`, borderRadius: 6,
-                padding: "4px 14px", fontSize: 10, cursor: "pointer",
-                textTransform: "uppercase", letterSpacing: 1, fontFamily: "inherit",
-                fontWeight: "bold"
+                width: "100%", height: 440, background: C.surface,
+                border: `1px solid ${C.border}`, borderRadius: 8, color: C.text,
+                fontFamily: "inherit", fontSize: 12, lineHeight: 1.7,
+                padding: 14, resize: "vertical", outline: "none", boxSizing: "border-box"
+              }} />
+            {error && <div style={{
+              marginTop: 8, background: "#2d1515", border: "1px solid #f47067",
+              borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "#f47067"
+            }}>⚠ {error}</div>}
+            {ast?.errors && ast.errors.length > 0 && (
+              <div style={{
+                marginTop: 8, background: "#2d1515", border: "1px solid #f47067",
+                borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "#f47067",
+                maxHeight: 150, overflowY: "auto"
               }}>
-              {diagramTheme === "dark" ? "🌙 Dark" : "☀️ Light"}
-            </button>
+                <div style={{ fontWeight: "bold", marginBottom: 6 }}>⚠ Unsupported Syntax:</div>
+                {ast.errors.map((e, i) => (
+                  <div key={i} style={{ fontFamily: "monospace", marginTop: 2 }}>
+                    Line {e.line}: <span style={{ opacity: 0.8 }}>{e.text.trim()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <div style={{
-            ...(THEMES[diagramTheme] as React.CSSProperties),
-            background: C.bg, border: `1px solid ${C.border}`, color: C.text,
-            borderRadius: 8, padding: 16, minHeight: 500, overflowX: "auto"
-          }}>
-            {ast && tab === "diagram" && <SequenceDiagram ast={ast} />}
-            {ast && tab === "ast" && <pre style={{ margin: 0, fontSize: 11, color: C.muted, lineHeight: 1.7 }}>{JSON.stringify(ast, null, 2)}</pre>}
-          </div>
-          <div style={{
-            marginTop: 8, display: "flex", gap: 14, fontSize: 10, color: C.muted,
-            borderTop: `1px solid ${C.border}`, paddingTop: 8, flexWrap: "wrap"
-          }}>
-            {[{ c: C.arrow, l: "message" }, { c: C.altLabel, l: "alt/else" }, { c: C.groupLabel, l: "group" },
-            { c: C.loopLabel, l: "loop" }, { c: C.noteBorder, l: "note" }, { c: C.dividerLine, l: "divider" }
-            ].map(({ c, l }) => (
-              <span key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ width: 9, height: 9, borderRadius: 2, background: c, display: "inline-block" }} />
-                {l}
-              </span>
-            ))}
+
+          <div>
+            <div style={{ display: "flex", gap: 4, marginBottom: 10, justifyContent: "space-between" }}>
+              <div style={{ display: "flex", gap: 4 }}>
+                {(["diagram", "ast"] as const).map(t => (
+                  <button key={t} onClick={() => setTab(t)}
+                    style={{
+                      background: tab === t ? C.accent : C.surface, color: tab === t ? C.bg : C.muted,
+                      border: `1px solid ${tab === t ? C.accent : C.border}`, borderRadius: 6,
+                      padding: "4px 14px", fontSize: 10, cursor: "pointer",
+                      fontWeight: tab === t ? "bold" : "normal",
+                      textTransform: "uppercase", letterSpacing: 1, fontFamily: "inherit"
+                    }}>{t}</button>
+                ))}
+              </div>
+
+              <button onClick={() => setDiagramTheme(diagramTheme === "dark" ? "light" : "dark")}
+                style={{
+                  background: C.surface, color: C.text,
+                  border: `1px solid ${C.border}`, borderRadius: 6,
+                  padding: "4px 14px", fontSize: 10, cursor: "pointer",
+                  textTransform: "uppercase", letterSpacing: 1, fontFamily: "inherit",
+                  fontWeight: "bold"
+                }}>
+                {diagramTheme === "dark" ? "🌙 Dark" : "☀️ Light"}
+              </button>
+            </div>
+
+            <div style={{ position: "relative" }}>
+              <div style={{
+                ...(THEMES[diagramTheme] as React.CSSProperties),
+                background: C.bg, border: `1px solid ${C.border}`, color: C.text,
+                borderRadius: 8, padding: 16, minHeight: 500, overflowX: "auto"
+              }}>
+                {ast && tab === "diagram" && <SequenceDiagram ast={ast} />}
+                {ast && tab === "ast" && <pre style={{ margin: 0, fontSize: 11, color: C.muted, lineHeight: 1.7 }}>{JSON.stringify(ast, null, 2)}</pre>}
+              </div>
+
+              {ast && <DiagramActions />}
+            </div>
+
+            <div style={{
+              marginTop: 8, display: "flex", gap: 14, fontSize: 10, color: C.muted,
+              borderTop: `1px solid ${C.border}`, paddingTop: 8, flexWrap: "wrap"
+            }}>
+              {[{ c: C.arrow, l: "message" }, { c: C.altLabel, l: "alt/else" }, { c: C.groupLabel, l: "group" },
+              { c: C.loopLabel, l: "loop" }, { c: C.noteBorder, l: "note" }, { c: C.dividerLine, l: "divider" }
+              ].map(({ c, l }) => (
+                <span key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ width: 9, height: 9, borderRadius: 2, background: c, display: "inline-block" }} />
+                  {l}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </DiagramProvider>
   );
 }
