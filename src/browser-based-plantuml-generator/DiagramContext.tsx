@@ -12,6 +12,8 @@ export interface DiagramContextType {
   setSelectedNodeId: (id: string | null) => void;
   clickPosition: { x: number, y: number } | null;
   setClickPosition: (pos: { x: number, y: number } | null) => void;
+  diagramPadding: { top: number, right: number, bottom: number, left: number };
+  setDiagramPadding: (pad: { top: number, right: number, bottom: number, left: number }) => void;
   actions: {
     deleteNode: (id: string) => void;
     editNodeLabel: (id: string, newLabel: string, branchIdx?: number) => void;
@@ -41,6 +43,7 @@ export function useDiagramActions() {
 export function DiagramProvider({ children, code, updateCode, ast }: { children: React.ReactNode, code: string, updateCode: (c: string) => void, ast: DiagramAST | null }) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [clickPosition, setClickPosition] = useState<{ x: number, y: number } | null>(null);
+  const [diagramPadding, setDiagramPadding] = useState({ top: 40, right: 40, bottom: 40, left: 40 });
 
   const actions = {
     deleteNode: (id: string) => {
@@ -284,7 +287,7 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
   };
 
   return (
-    <DiagramContext.Provider value={{ code, updateCode, ast, selectedNodeId, setSelectedNodeId, clickPosition, setClickPosition, actions }}>
+    <DiagramContext.Provider value={{ code, updateCode, ast, selectedNodeId, setSelectedNodeId, clickPosition, setClickPosition, diagramPadding, setDiagramPadding, actions }}>
       {children}
     </DiagramContext.Provider>
   );

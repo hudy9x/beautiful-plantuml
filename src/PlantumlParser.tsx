@@ -389,6 +389,12 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
   const { participants, statements, boxes, declMap, title } = ast;
   if (!participants.length) return null;
 
+  const { diagramPadding } = useDiagram();
+  const padTop = diagramPadding?.top ?? 0;
+  const padRight = diagramPadding?.right ?? 0;
+  const padBottom = diagramPadding?.bottom ?? 0;
+  const padLeft = diagramPadding?.left ?? 0;
+
   const N = participants.length;
 
   // gapW[g] = pixel distance between center of col g and col g+1  (length N-1)
@@ -441,19 +447,19 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
     }
     return overflow;
   }
-  const svgPadL = calcLeftOverflow(statements);
+  const svgPadL = calcLeftOverflow(statements) + padLeft;
 
   // Shift all column centers right by svgPadL to make room for left-side notes
   const shiftedCenters = colCenters.map(x => x + svgPadL);
-  const totalW = shiftedCenters[N - 1] + edgeR;  // edgeR only — svgPadL already baked into shiftedCenters
+  const totalW = shiftedCenters[N - 1] + edgeR + padRight;
 
   const aliasToX: Record<string, number> = {};
   participants.forEach((p, i) => { aliasToX[p.alias] = shiftedCenters[i]; });
 
   // Box title extra height
   const hasBoxes = boxes.length > 0;
-  let titleHOffset = 0;
-  if (title) titleHOffset = 40;
+  let titleHOffset = padTop;
+  if (title) titleHOffset += 40;
   const maxBDepth = hasBoxes ? Math.max(...boxes.map(boxDepth)) : 0;
   const boxTitleH = maxBDepth * BOX_TITLE_H + titleHOffset;
 
@@ -464,7 +470,7 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
   const { nodes: timelineNodes, h: timelineH } = drawBlock(statements, timelineY, ctx, 0);
 
   const footerY = timelineY + timelineH + GAP;
-  const totalH = footerY + PART_H + 8;
+  const totalH = footerY + PART_H + 8 + padBottom;
 
   // Lifeline endpoints — use shiftedCenters
   const lifelineSegs = participants.map((p, i) => ({
@@ -572,7 +578,7 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
 
       {/* Diagram Title */}
       {title && (
-        <text x={totalW / 2} y={24} textAnchor="middle" fontSize={18} fontWeight="bold" fill={C.text}>
+        <text x={totalW / 2} y={padTop + 24} textAnchor="middle" fontSize={18} fontWeight="bold" fill={C.text}>
           {title}
         </text>
       )}
@@ -580,7 +586,7 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
       {/* Box bands — drawn first (lowest layer) */}
       {hasBoxes && (
         <g className="box-bands">
-          {drawBoxBands(boxes, aliasToX, declMap, shiftedCenters, gapW, titleHOffset, totalH)}
+          {drawBoxBands(boxes, aliasToX, declMap, shiftedCenters, gapW, titleHOffset, totalH - padBottom)}
         </g>
       )}
 
