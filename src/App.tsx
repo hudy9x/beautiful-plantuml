@@ -139,7 +139,6 @@ function PreviewPanel({
 
       <div style={{ position: "relative" }}>
         <div style={{
-          ...(THEMES[diagramTheme] as React.CSSProperties),
           background: C.bg, border: `1px solid ${C.border}`, color: C.text,
           borderRadius: 8, padding: 16, minHeight: 500, overflowX: "auto"
         }}>
@@ -179,10 +178,18 @@ function App() {
     catch (e) { setError((e as Error).message); setAst(null); }
   }, [input]);
 
+  useEffect(() => {
+    const theme = THEMES[diagramTheme] as Record<string, string>;
+    for (const key in theme) {
+      document.body.style.setProperty(key, theme[key]);
+    }
+    // Also apply a background color directly to body for a smoother visual transition
+    document.body.style.background = theme['--c-bg'];
+  }, [diagramTheme]);
+
   return (
     <DiagramProvider code={input} updateCode={setInput} ast={ast}>
       <div style={{
-        ...(THEMES.dark as React.CSSProperties),
         minHeight: "100vh", background: C.bg, color: C.text,
         fontFamily: "'JetBrains Mono','Fira Code',monospace", padding: 20, boxSizing: "border-box"
       }}>

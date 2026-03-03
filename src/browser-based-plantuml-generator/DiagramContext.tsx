@@ -22,6 +22,7 @@ export interface DiagramContextType {
     editParticipant: (alias: string, newDeclStr: string) => void;
     deleteParticipant: (alias: string) => void;
     moveParticipant: (alias: string, direction: "left" | "right") => void;
+    insertParticipantAt: (index: number, kind?: string) => void;
   };
 }
 
@@ -267,6 +268,17 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
       } else if (direction === "right" && idx < newAst.participants.length - 1) {
         swapInArr(newAst.participants, idx, idx + 1);
       }
+      updateCode(astToString(newAst));
+    },
+
+    insertParticipantAt: (index: number, kind?: string) => {
+      if (!ast) return;
+      const actualKind = kind || "participant";
+      const newAlias = "NewPart_" + genId().substring(0, 4);
+      const newP = { alias: newAlias, name: "New Participant", kind: actualKind };
+      const newAst = JSON.parse(JSON.stringify(ast));
+      const safeIndex = Math.max(0, Math.min(newAst.participants.length, index));
+      newAst.participants.splice(safeIndex, 0, newP);
       updateCode(astToString(newAst));
     }
   };

@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useDiagram } from "./browser-based-plantuml-generator/DiagramContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -13,6 +14,7 @@ import { computeColWidths } from "./browser-based-plantuml-generator/layout/colw
 import { shapeBottomOffset, shapeTopOffset } from "./browser-based-plantuml-generator/layout/shapes";
 import { ParticipantShape } from "./browser-based-plantuml-generator/renderer/shapes";
 import { BlockHeader, DiagramDivider, MessageArrow, NoteBoxSvg, noteH, noteW, SelfArrow, selfMessageH, SvgDefs } from "./browser-based-plantuml-generator/renderer/elements";
+import { PARTICIPANT_KINDS } from "./browser-based-plantuml-generator/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // parser/tokenizer.ts
@@ -471,7 +473,60 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
     y2: footerY + PART_H / 2 - shapeTopOffset(p.kind, !!p.stereoType),
   }));
 
-  const { setSelectedNodeId, setClickPosition } = useDiagram();
+  const { setSelectedNodeId, setClickPosition, actions } = useDiagram();
+
+  const svgRef = useRef<SVGSVGElement>(null);
+  const hoverLinesRef = useRef<SVGGElement>(null);
+  const vLineRef = useRef<SVGLineElement>(null);
+  const hLineRef = useRef<SVGLineElement>(null);
+  const addBtnGroupRef = useRef<SVGGElement>(null);
+  const lastInsertIndexRef = useRef<number>(-1);
+
+  const [popover, setPopover] = useState<{ x: number, y: number, insertIdx: number } | null>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (popover) return;
+    if (!svgRef.current || !hoverLinesRef.current || !vLineRef.current || !hLineRef.current || !addBtnGroupRef.current) return;
+
+    const pt = svgRef.current.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const ctm = svgRef.current.getScreenCTM();
+    if (!ctm) return;
+    const cursorPt = pt.matrixTransform(ctm.inverse());
+    const nx = cursorPt.x;
+    const ny = cursorPt.y;
+
+    hoverLinesRef.current.style.display = "block";
+
+    vLineRef.current.setAttribute("x1", String(nx));
+    vLineRef.current.setAttribute("x2", String(nx));
+    hLineRef.current.setAttribute("y1", String(ny));
+    hLineRef.current.setAttribute("y2", String(ny));
+
+    let insertIdx = 0;
+    while (insertIdx < shiftedCenters.length && nx > shiftedCenters[insertIdx]) {
+      insertIdx++;
+    }
+    lastInsertIndexRef.current = insertIdx;
+
+    addBtnGroupRef.current.setAttribute("transform", `translate(${nx}, 10)`);
+  };
+
+  const handleMouseLeave = () => {
+    if (popover) return;
+    if (hoverLinesRef.current) {
+      hoverLinesRef.current.style.display = "none";
+    }
+  };
+
+  useEffect(() => {
+    // Close popover when clicking anywhere else
+    if (!popover) return;
+    const closePopover = () => setPopover(null);
+    document.addEventListener("click", closePopover);
+    return () => document.removeEventListener("click", closePopover);
+  }, [popover]);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -504,11 +559,14 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
 
   return (
     <svg
+      ref={svgRef}
       width={totalW}
       height={totalH}
       viewBox={`0 0 ${totalW} ${totalH}`}
       className="sequence-diagram"
-      style={{ fontFamily: "'JetBrains Mono','Fira Code',monospace", overflow: "visible", display: "block" }}
+      style={{ fontFamily: "'JetBrains Mono','Fira Code',monospace", overflow: "visible", display: "block", position: "relative" }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
     >
       <SvgDefs />
 
@@ -555,6 +613,72 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
             cx={shiftedCenters[i]} cy={footerY + PART_H / 2} stroke={C.accent} stereoType={p.stereoType} fill={p.color} dataId={`participant:${p.alias}`} />
         ))}
       </g>
+
+      {/* Interactive Hover Layer */}
+      <g ref={hoverLinesRef} style={{ display: "none", zIndex: 1000 }}>
+        <line ref={vLineRef} y1={0} y2={totalH} stroke="#3b82f6" strokeWidth={1.5} strokeDasharray="4,4" opacity={0.6} style={{ pointerEvents: "none" }} />
+        <line ref={hLineRef} x1={0} x2={totalW} stroke="#3b82f6" strokeWidth={1.5} strokeDasharray="4,4" opacity={0.6} style={{ pointerEvents: "none" }} />
+
+        <g
+          ref={addBtnGroupRef}
+          style={{ cursor: "pointer", pointerEvents: "all" }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (lastInsertIndexRef.current >= 0) {
+              setPopover({ x: e.clientX, y: e.clientY, insertIdx: lastInsertIndexRef.current });
+            }
+          }}
+        >
+          {/* Circular + icon button */}
+          <circle cx={0} cy={12} r={12} fill="#3b82f6" />
+          <line x1={-6} y1={12} x2={6} y2={12} stroke="#ffffff" strokeWidth={2} />
+          <line x1={0} y1={6} x2={0} y2={18} stroke="#ffffff" strokeWidth={2} />
+        </g>
+      </g>
+
+      {/* Popover Menu using Portal to render absolute HTML over the page */}
+      {popover && createPortal(
+        <div style={{
+          position: "fixed", left: popover.x, top: popover.y + 16,
+          background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
+          padding: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.5)", zIndex: 9999,
+          transform: "translateX(-50%)",
+          display: "flex", flexDirection: "column", gap: 4
+        }} onClick={e => e.stopPropagation()}>
+          <div style={{ fontSize: 11, fontWeight: "bold", padding: "4px 8px", color: C.text, textAlign: "center", borderBottom: `1px solid ${C.border}` }}>
+            Participant Type
+          </div>
+          <div style={{ display: "flex", }}>
+            {PARTICIPANT_KINDS.map((kind) => (
+              <button
+                key={kind}
+                style={{
+                  background: "transparent", border: "none", color: C.text,
+                  fontSize: 12, padding: "6px 8px", textAlign: "left",
+                  cursor: "pointer", borderRadius: 4, textTransform: "capitalize"
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                onClick={() => {
+                  actions.insertParticipantAt(popover.insertIdx, kind);
+                  setPopover(null);
+                  if (hoverLinesRef.current) hoverLinesRef.current.style.display = "none";
+                }}
+              >
+                {/* {kind} */}
+
+                <svg viewBox="-25 -35 50 55" width="28" height="30" style={{ pointerEvents: "none" }}>
+                  <ParticipantShape kind={kind} name="" cx={0} cy={0} stroke={C.text} />
+                </svg>
+
+
+              </button>
+            ))}
+          </div>
+
+        </div>,
+        document.body
+      )}
     </svg>
   );
 }
