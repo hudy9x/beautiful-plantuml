@@ -1,5 +1,4 @@
-import React from "react";
-import { C } from "../PlantumlParser";
+import { C } from "./theme";
 
 export function ActionButton({ onClick, label, danger }: { onClick: () => void, label: string, danger?: boolean }) {
   const bg = danger ? "#4f1616" : "rgba(255,255,255,0.05)";

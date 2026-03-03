@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
-import {
-  parse, C, THEMES,
-  ParticipantShape, SequenceDiagram, PARTICIPANT_KINDS
-} from './PlantumlParser'
-import type { DiagramAST } from './PlantumlParser'
+
 import { SAMPLES } from './samples'
 import { DiagramProvider } from './browser-based-plantuml-generator/DiagramContext'
 import { DiagramActions } from './browser-based-plantuml-generator/DiagramActions'
+import { C, THEMES } from './browser-based-plantuml-generator/theme'
+import { PARTICIPANT_KINDS, type DiagramAST } from './browser-based-plantuml-generator/types'
+import { ParticipantShape, SequenceDiagram } from './PlantumlParser'
+import { parse } from './browser-based-plantuml-generator/parser/parser'
 
 function Header() {
   return (

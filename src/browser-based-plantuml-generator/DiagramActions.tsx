@@ -1,5 +1,5 @@
-import { C } from "../PlantumlParser";
-import type { DiagramAST, StatementNode } from "../PlantumlParser";
+import { C } from "./theme";
+import type { DiagramAST, StatementNode } from "./types";
 import { useDiagram } from "./DiagramContext";
 import { ActionButton } from "./ActionButton";
 

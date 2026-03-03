@@ -1,6 +1,8 @@
 import React, { useState, createContext, useContext } from "react";
-import { genId, astToString, tokenizeLine } from "../PlantumlParser";
-import type { DiagramAST, StatementNode, Participant } from "../PlantumlParser";
+import type { DiagramAST, Participant, StatementNode } from "./types";
+import { astToString } from "./parser/serializer";
+import { genId } from "./utils";
+import { tokenizeLine } from "./parser/tokenizer";
 
 export interface DiagramContextType {
   code: string;
