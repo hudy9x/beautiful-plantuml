@@ -7,6 +7,9 @@ import { useDiagram } from "./browser-based-plantuml-generator/DiagramContext";
 
 import { type ParticipantKind, type DiagramAST, type Participant, type StatementNode, type BoxDeclNode, type MessageNode, type NoteNode, type DividerNode } from "./browser-based-plantuml-generator/types";
 import { C } from "./browser-based-plantuml-generator/theme";
+import { boxDepth, resolveBoxRGB, shapeHalfW } from "./browser-based-plantuml-generator/utils";
+import { BLOCK_HDR_H, BLOCK_PAD_X, BLOCK_PAD_Y, BOX_GAP, BOX_SHAPE_PAD, BOX_TITLE_H, COL_MIN_W, DIVIDER_H, GAP, MSG_ARROW_BOT, MSG_H, MSG_LABEL_OFF, MSG_LINE_H, NOTE_FONT, NOTE_LINE_H, NOTE_PAD_H, NOTE_PAD_V, PART_H, SELF_LOOP_GAP, SELF_LOOP_H, SELF_LOOP_W } from "./browser-based-plantuml-generator/layout/constants";
+import { computeColWidths } from "./browser-based-plantuml-generator/layout/colwidth";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // parser/tokenizer.ts
@@ -24,161 +27,9 @@ import { C } from "./browser-based-plantuml-generator/theme";
 // theme/index.ts
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Layout constants
-const COL_MIN_W = 90;   // minimum gap between two adjacent participant centers
-const COL_PAD = 20;   // padding added on each side of the label text (total 40px margin)
-const CHAR_W = 7.2;  // estimated px per character in message labels
-const PART_H = 80;   // participant header/footer area height (px)
-const NOTE_FONT = 11;
-const NOTE_LINE_H = NOTE_FONT * 1.65;
-const NOTE_PAD_V = 10;
-const NOTE_PAD_H = 14;
-const MSG_H = 44;   // total height of one message row
-const MSG_LABEL_OFF = 20;   // y of first label baseline from row top
-const MSG_LINE_H = 14;   // height per extra label line
-const MSG_ARROW_BOT = 10;   // gap from bottom of row to arrow line
-const DIVIDER_H = 36;
-const BLOCK_HDR_H = 26;
-const BLOCK_PAD_X = 24;
-const BLOCK_PAD_Y = 8;
-const BOX_TITLE_H = 22;
-const GAP = 10;
-
 // ─────────────────────────────────────────────────────────────────────────────
 // layout/colwidth.ts  —  dynamic column width from message labels
-//
-// Algorithm (matches real PlantUML behaviour):
-//
-//   1. Start every gap at COL_MIN_W.
-//   2. For each message (lo → hi):
-//        needed = labelPixelWidth + COL_PAD*2
-//        For a DIRECT (single-gap) message: gap[lo] = max(gap[lo], needed)
-//        For a MULTI-gap message: if sum(gap[lo..hi-1]) < needed,
-//          expand only gap[hi-1] (the last gap before the target) to make up
-//          the shortfall.  All earlier gaps keep their individually-computed min.
-//   3. After all messages, clamp every gap to ≥ COL_MIN_W and also ensure
-//      each participant's name fits in the adjacent gap half-widths.
-//
-// Result: only the gap that a long label directly crosses grows — all others
-// stay at their own minimum, matching image 2 from the reference.
 // ─────────────────────────────────────────────────────────────────────────────
-
-function estLabelW(label: string, autoNum: number | null): number {
-  const prefix = autoNum !== null ? `${autoNum}. ` : "";
-  const lines = label.split("\\n");
-  const first = prefix + lines[0];
-  const longest = lines.slice(1).reduce((a, b) => b.length > a.length ? b : a, first);
-  return longest.length * CHAR_W;
-}
-
-function computeColWidths(
-  participants: Participant[],
-  statements: StatementNode[],
-  boxes: BoxDeclNode[],
-  declMap: Record<string, Participant>
-): number[] {
-  const N = participants.length;
-  if (N <= 1) return [COL_MIN_W];
-
-  const aliasIdx: Record<string, number> = {};
-  participants.forEach((p, i) => { aliasIdx[p.alias] = i; });
-
-  const gapW = new Array(N - 1).fill(COL_MIN_W) as number[];
-
-  interface MsgConstraint { lo: number; hi: number; needed: number; }
-  const constraints: MsgConstraint[] = [];
-
-  function visitStmts(stmts: StatementNode[]) {
-    for (const s of stmts) {
-      if (s.type === "MESSAGE") {
-        const fi = aliasIdx[s.from] ?? 0;
-        const ti = aliasIdx[s.to] ?? 0;
-        if (fi === ti) {
-          // Self-message: the loop + label extends to the RIGHT of the participant.
-          // The gap to the right neighbor must be >= SELF_LOOP_W + label_width + margin.
-          // If this is the rightmost column (no right neighbor), no constraint needed.
-          if (fi < N - 1) {
-            const tw = estLabelW(s.label, s.autoNum);
-            const needed = SELF_LOOP_W + tw + COL_PAD;
-            constraints.push({ lo: fi, hi: fi + 1, needed });
-          }
-          continue;
-        }
-        const lo = Math.min(fi, ti);
-        const hi = Math.max(fi, ti);
-        const tw = estLabelW(s.label, s.autoNum);
-        const needed = tw + COL_PAD * 2;
-        constraints.push({ lo, hi, needed });
-      }
-      if (s.type === "ALT_BLOCK") s.branches.forEach(b => visitStmts(b.statements));
-      if (s.type === "GROUP_BLOCK") visitStmts(s.statements);
-      if (s.type === "LOOP_BLOCK") visitStmts(s.statements);
-    }
-  }
-  visitStmts(statements);
-
-  // Pass 1 — direct single-gap messages
-  for (const { lo, hi, needed } of constraints) {
-    if (hi - lo === 1) gapW[lo] = Math.max(gapW[lo], needed);
-  }
-
-  // Pass 2 — multi-gap messages: expand last gap to cover shortfall
-  const multiGap = constraints.filter(c => c.hi - c.lo > 1).sort((a, b) => (a.hi - a.lo) - (b.hi - b.lo));
-  for (const { lo, hi, needed } of multiGap) {
-    const cur = gapW.slice(lo, hi).reduce((a, b) => a + b, 0);
-    if (cur < needed) gapW[hi - 1] += needed - cur;
-  }
-
-  // Pass 3 — participant shape/name fit
-  for (let i = 0; i < N; i++) {
-    const minGap = (participants[i].name.length * 4.0 + 22) * 2;
-    if (i > 0 && gapW[i - 1] < minGap) gapW[i - 1] = minGap;
-    if (i < N - 1 && gapW[i] < minGap) gapW[i] = minGap;
-  }
-
-  // Pass 4 — box titles: ensure each box's visual width fits its title.
-  // Box interior = shapeHalfW(left) + internal gaps + shapeHalfW(right) + 2*BOX_SHAPE_PAD
-  // If title is wider, expand the gap adjacent to the boundary side (or distribute
-  // across internal gaps for multi-col boxes).
-  function visitBoxes(bxs: BoxDeclNode[]) {
-    for (const box of bxs) {
-      if (box.title) {
-        const aliases = box.allAliases.filter(a => aliasIdx[a] !== undefined);
-        if (aliases.length) {
-          const idxs = aliases.map(a => aliasIdx[a]);
-          const loIdx = Math.min(...idxs);
-          const hiIdx = Math.max(...idxs);
-
-          const loAlias = aliases.find(a => aliasIdx[a] === loIdx)!;
-          const hiAlias = aliases.find(a => aliasIdx[a] === hiIdx)!;
-          const leftHW = declMap[loAlias] ? shapeHalfW(declMap[loAlias].kind, declMap[loAlias].name) : 14;
-          const rightHW = declMap[hiAlias] ? shapeHalfW(declMap[hiAlias].kind, declMap[hiAlias].name) : 14;
-
-          const internalSum = loIdx < hiIdx ? gapW.slice(loIdx, hiIdx).reduce((a, b) => a + b, 0) : 0;
-          const interior = leftHW + internalSum + rightHW + BOX_SHAPE_PAD * 2;
-          const titleW = box.title.length * 7.5 + 24;
-
-          if (titleW > interior) {
-            const deficit = titleW - interior;
-            if (loIdx === hiIdx) {
-              // Single-col box: expand gap to the right, fallback left
-              if (loIdx < N - 1) gapW[loIdx] = Math.max(gapW[loIdx], gapW[loIdx] + deficit);
-              else if (loIdx > 0) gapW[loIdx - 1] = Math.max(gapW[loIdx - 1], gapW[loIdx - 1] + deficit);
-            } else {
-              // Multi-col: distribute across internal gaps
-              const perGap = deficit / (hiIdx - loIdx);
-              for (let g = loIdx; g < hiIdx; g++) gapW[g] += perGap;
-            }
-          }
-        }
-      }
-      visitBoxes(box.children);
-    }
-  }
-  visitBoxes(boxes);
-
-  return gapW;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // layout/shapes.ts  —  FIX #1: per-shape bottom offset for lifeline attachment
@@ -426,9 +277,9 @@ function MessageArrow({ x1, y, x2, dashed, rawLabel, autoNum, idx, node }:
 //   - Arrow: -> (from=to): arrowhead points LEFT  (back to lifeline) on bottom line
 //            <- (from=to): arrowhead points RIGHT (away from lifeline) on top line
 
-const SELF_LOOP_W = 36;  // px the loop extends right of lifeline
-const SELF_LOOP_H = 18;  // px height of the loop rectangle
-const SELF_LOOP_GAP = 6;   // px gap between last label line and loop top
+// const SELF_LOOP_W = 36;  // px the loop extends right of lifeline
+// const SELF_LOOP_H = 18;  // px height of the loop rectangle
+// const SELF_LOOP_GAP = 6;   // px gap between last label line and loop top
 
 function selfMessageH(lines: string[]): number {
   // When no label, loop sits at top of row with minimal padding
@@ -489,16 +340,6 @@ function SelfArrow({ cx, y, dashed, rawLabel, autoNum, idx, arrowBack, node }:
 }
 
 // ── Note box ──────────────────────────────────────────────────────────────────
-const NAMED_RGB: Record<string, string> = {
-  lightblue: "173,216,230", lightgray: "211,211,211", lightgrey: "211,211,211",
-  lightyellow: "255,255,224", lightgreen: "144,238,144", lightpink: "255,182,193",
-  lightsalmon: "255,160,122", lightcoral: "240,128,128", lavender: "230,230,250",
-  aqua: "0,255,255", cyan: "0,255,255", pink: "255,192,203", yellow: "255,255,0",
-  orange: "255,165,0", green: "0,128,0", blue: "0,0,255", red: "255,0,0",
-  gray: "128,128,128", grey: "128,128,128", white: "255,255,255", beige: "245,245,220",
-  wheat: "245,222,179", khaki: "240,230,140", plum: "221,160,221", violet: "238,130,238",
-  turquoise: "64,224,208", skyblue: "135,206,235", steelblue: "70,130,180",
-};
 
 function resolveNoteColor(raw: string | null): { bg: string; border: string; text: string } {
   if (!raw) return { bg: C.noteBg, border: C.noteBorder, text: C.noteText };
@@ -848,44 +689,6 @@ function drawBlock(stmts: StatementNode[], startY: number, ctx: DrawCtx, depth: 
 
 // ── Box bands ─────────────────────────────────────────────────────────────────
 
-function resolveBoxRGB(raw: string | null): string {
-  const name = raw ? (raw.startsWith("#") ? raw.slice(1) : raw) : "LightBlue";
-  const key = name.toLowerCase();
-  if (NAMED_RGB[key]) return NAMED_RGB[key];
-  const h6 = name.match(/^([0-9a-fA-F]{6})$/);
-  if (h6) { const n = parseInt(h6[1], 16); return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`; }
-  const h3 = name.match(/^([0-9a-fA-F]{3})$/);
-  if (h3) { const [r, g, b] = h3[1].split("").map(c => parseInt(c + c, 16)); return `${r},${g},${b}`; }
-  return NAMED_RGB.lightblue;
-}
-function boxDepth(b: BoxDeclNode): number {
-  return b.children.length ? 1 + Math.max(...b.children.map(boxDepth)) : 1;
-}
-// Returns the visual half-width of a participant shape from its center.
-// Used to compute tight box band edges.
-function shapeHalfW(kind: ParticipantKind, name: string, stereoType?: string): number {
-  let w = name.length * 3.6 + 9;
-  if (stereoType) {
-    let stereoW = stereoType.length * 3.6 + 10;
-    if (stereoType.match(/^\(([A-Za-z0-9]),/)) stereoW += 10;
-    w = Math.max(w, stereoW);
-  }
-
-  switch (kind) {
-    case "participant": return Math.max(22, w); // half of rect width
-    case "actor": return 13;   // widest point: arms span ±12, label ~±name/2
-    case "boundary": return 20;   // left bar at -19
-    case "control": return 14;
-    case "entity": return 14;
-    case "database": return 14;
-    case "collections": return 14;
-    case "queue": return 16;
-    default: return 14;
-  }
-}
-
-const BOX_SHAPE_PAD = 10; // px of padding between shape edge and box border
-const BOX_GAP = 3;  // px gap between adjacent box borders at the midpoint
 
 function drawBoxBands(
   boxes: BoxDeclNode[],
