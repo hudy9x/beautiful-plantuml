@@ -616,8 +616,8 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
 
       {/* Interactive Hover Layer */}
       <g ref={hoverLinesRef} style={{ display: "none", zIndex: 1000 }}>
-        <line ref={vLineRef} y1={0} y2={totalH} stroke="#3b82f6" strokeWidth={1.5} strokeDasharray="4,4" opacity={0.6} style={{ pointerEvents: "none" }} />
-        <line ref={hLineRef} x1={0} x2={totalW} stroke="#3b82f6" strokeWidth={1.5} strokeDasharray="4,4" opacity={0.6} style={{ pointerEvents: "none" }} />
+        <line ref={vLineRef} y1={0} y2={totalH} stroke="#d3d3d3ff" strokeWidth={1.5} strokeDasharray="4,4" opacity={0.6} style={{ pointerEvents: "none" }} />
+        <line ref={hLineRef} x1={0} x2={totalW} stroke="#d3d3d3ff" strokeWidth={1.5} strokeDasharray="4,4" opacity={0.6} style={{ pointerEvents: "none" }} />
 
         <g
           ref={addBtnGroupRef}
