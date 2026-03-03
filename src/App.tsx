@@ -6,8 +6,9 @@ import { DiagramProvider } from './browser-based-plantuml-generator/DiagramConte
 import { DiagramActions } from './browser-based-plantuml-generator/DiagramActions'
 import { C, THEMES } from './browser-based-plantuml-generator/theme'
 import { PARTICIPANT_KINDS, type DiagramAST } from './browser-based-plantuml-generator/types'
-import { ParticipantShape, SequenceDiagram } from './PlantumlParser'
+import { SequenceDiagram } from './PlantumlParser'
 import { parse } from './browser-based-plantuml-generator/parser/parser'
+import { ParticipantShape } from './browser-based-plantuml-generator/renderer/shapes'
 
 function Header() {
   return (
