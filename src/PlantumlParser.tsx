@@ -2,28 +2,30 @@
 // PlantUML Sequence Diagram Viewer  —  SVG renderer
 // =============================================================================
 
-import React, { useState, useEffect, createContext, useContext } from "react";
+import React, { useState, useEffect } from "react";
+import { DiagramProvider, useDiagram } from "./browser-based-plantuml-generator/DiagramContext";
+import { DiagramActions } from "./browser-based-plantuml-generator/DiagramActions";
 
-const genId = () => Math.random().toString(36).substring(2, 9);
+export const genId = () => Math.random().toString(36).substring(2, 9);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // types/index.ts
 // ─────────────────────────────────────────────────────────────────────────────
 
-type ParticipantKind =
+export type ParticipantKind =
   | "participant" | "actor" | "boundary" | "control"
   | "entity" | "database" | "collections" | "queue";
 
-const PARTICIPANT_KINDS: ParticipantKind[] = [
+export const PARTICIPANT_KINDS: ParticipantKind[] = [
   "participant", "actor", "boundary", "control",
   "entity", "database", "collections", "queue",
 ];
 
-interface Participant { alias: string; name: string; kind: ParticipantKind; stereoType?: string; color?: string; }
-type ArrowType = "->" | "<-" | "-->" | "<--";
-type NotePosition = "left" | "right" | "over" | "across";
+export interface Participant { alias: string; name: string; kind: ParticipantKind; stereoType?: string; color?: string; }
+export type ArrowType = "->" | "<-" | "-->" | "<--";
+export type NotePosition = "left" | "right" | "over" | "across";
 
-type Token =
+export type Token =
   | { type: "START" } | { type: "END" }
   | { type: "TITLE"; text: string }
   | { type: "AUTONUMBER" }
@@ -42,22 +44,22 @@ type Token =
   | { type: "NOTE_BARE_INLINE"; position: "left" | "right"; color: string | null; text: string }
   | { type: "NOTE_BARE_START"; position: "left" | "right"; color: string | null };
 
-interface MessageNode { type: "MESSAGE"; id: string; from: string; arrow: ArrowType; to: string; label: string; idx: number; autoNum: number | null; leftAlias: string; rightAlias: string; }
-interface NoteNode { type: "NOTE"; id: string; position: NotePosition; p1: string | null; p2: string | null; color: string | null; lines: string[]; }
-interface DividerNode { type: "DIVIDER"; id: string; label: string; }
-interface AltBranch { condition: string; statements: StatementNode[]; }
-interface AltBlockNode { type: "ALT_BLOCK"; id: string; branches: AltBranch[]; }
-interface GroupBlockNode { type: "GROUP_BLOCK"; id: string; label: string; statements: StatementNode[]; }
-interface LoopBlockNode { type: "LOOP_BLOCK"; id: string; label: string; statements: StatementNode[]; }
-interface BoxDeclNode { type: "BOX_DECL"; id: string; title: string | null; color: string | null; directAliases: string[]; children: BoxDeclNode[]; allAliases: string[]; }
-type StatementNode = MessageNode | NoteNode | DividerNode | AltBlockNode | GroupBlockNode | LoopBlockNode | BoxDeclNode;
-interface DiagramAST { title: string | null; autonumber: boolean; participants: Participant[]; declMap: Record<string, Participant>; statements: StatementNode[]; boxes: BoxDeclNode[]; errors: { line: number; text: string }[]; }
+export interface MessageNode { type: "MESSAGE"; id: string; from: string; arrow: ArrowType; to: string; label: string; idx: number; autoNum: number | null; leftAlias: string; rightAlias: string; }
+export interface NoteNode { type: "NOTE"; id: string; position: NotePosition; p1: string | null; p2: string | null; color: string | null; lines: string[]; }
+export interface DividerNode { type: "DIVIDER"; id: string; label: string; }
+export interface AltBranch { condition: string; statements: StatementNode[]; }
+export interface AltBlockNode { type: "ALT_BLOCK"; id: string; branches: AltBranch[]; }
+export interface GroupBlockNode { type: "GROUP_BLOCK"; id: string; label: string; statements: StatementNode[]; }
+export interface LoopBlockNode { type: "LOOP_BLOCK"; id: string; label: string; statements: StatementNode[]; }
+export interface BoxDeclNode { type: "BOX_DECL"; id: string; title: string | null; color: string | null; directAliases: string[]; children: BoxDeclNode[]; allAliases: string[]; }
+export type StatementNode = MessageNode | NoteNode | DividerNode | AltBlockNode | GroupBlockNode | LoopBlockNode | BoxDeclNode;
+export interface DiagramAST { title: string | null; autonumber: boolean; participants: Participant[]; declMap: Record<string, Participant>; statements: StatementNode[]; boxes: BoxDeclNode[]; errors: { line: number; text: string }[]; }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // parser/tokenizer.ts
 // ─────────────────────────────────────────────────────────────────────────────
 
-function tokenizeLine(line: string): Token | null {
+export function tokenizeLine(line: string): Token | null {
   const t = line.trim();
   if (!t) return null;
   if (t === "@startuml") return { type: "START" };
@@ -417,7 +419,7 @@ const THEMES = {
   }
 };
 
-const C = {
+export const C = {
   bg: "var(--c-bg)",
   surface: "var(--c-surface)",
   border: "var(--c-border)",
@@ -1577,451 +1579,15 @@ const SAMPLES: { label: string; code: string }[] = [
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Interactivity Context & Hooks
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface DiagramContextType {
-  code: string;
-  updateCode: (code: string) => void;
-  ast: DiagramAST | null;
-  selectedNodeId: string | null;
-  setSelectedNodeId: (id: string | null) => void;
-  clickPosition: { x: number, y: number } | null;
-  setClickPosition: (pos: { x: number, y: number } | null) => void;
-  actions: {
-    deleteNode: (id: string) => void;
-    editNodeLabel: (id: string, newLabel: string, branchIdx?: number) => void;
-    createMessage: (targetId: string, position: "after" | "inside", branchIdx?: number) => void;
-    createElse: (altId: string, branchIdx: number) => void;
-    deleteElse: (altId: string, branchIdx: number) => void;
-    createParticipant: (targetAlias: string) => void;
-    editParticipant: (alias: string, newDeclStr: string) => void;
-    deleteParticipant: (alias: string) => void;
-    moveParticipant: (alias: string, direction: "left" | "right") => void;
-  };
-}
-
-const DiagramContext = createContext<DiagramContextType | null>(null);
-
-export function useDiagram() {
-  const ctx = useContext(DiagramContext);
-  if (!ctx) throw new Error("useDiagram must be used within DiagramProvider");
-  return ctx;
-}
-
-export function useDiagramActions() {
-  return useDiagram().actions;
-}
-
-function DiagramProvider({ children, code, updateCode, ast }: { children: React.ReactNode, code: string, updateCode: (c: string) => void, ast: DiagramAST | null }) {
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [clickPosition, setClickPosition] = useState<{ x: number, y: number } | null>(null);
-
-  const actions = {
-    deleteNode: (id: string) => {
-      if (!ast) return;
-      function filterStmts(stmts: StatementNode[]): StatementNode[] {
-        return stmts.filter(s => {
-          if (s.type === "ALT_BLOCK") {
-            if (s.id === id) return false;
-            s.branches.forEach(b => b.statements = filterStmts(b.statements));
-          } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
-            if (s.id === id) return false;
-            s.statements = filterStmts(s.statements);
-          } else if (s.type === "NOTE" || s.type === "DIVIDER" || s.type === "MESSAGE") {
-            if (s.id === id) return false;
-          }
-          return true;
-        });
-      }
-      const newAst = { ...ast, statements: filterStmts([...ast.statements]) };
-      updateCode(astToString(newAst));
-      setSelectedNodeId(null);
-      setClickPosition(null);
-    },
-
-    editNodeLabel: (id: string, newLabel: string, branchIdx?: number) => {
-      if (!ast) return;
-      const newStmts = JSON.parse(JSON.stringify(ast.statements)); // quick deep clone
-      function edit(stmts: any[]): boolean {
-        for (const s of stmts) {
-          if (s.id === id) {
-            if (s.type === "MESSAGE") {
-              const msgM = newLabel.match(/^(\S+)\s*(->|<-|-->|<--)\s*(\S+)\s*:\s*(.+)$/);
-              if (msgM) {
-                s.from = msgM[1]; s.arrow = msgM[2] as ArrowType; s.to = msgM[3]; s.label = msgM[4].trim();
-              } else {
-                const msgNoLabel = newLabel.match(/^(\S+)\s*(->|<-|-->|<--)\s*(\S+)\s*$/);
-                if (msgNoLabel) {
-                  s.from = msgNoLabel[1]; s.arrow = msgNoLabel[2] as ArrowType; s.to = msgNoLabel[3]; s.label = "";
-                } else {
-                  s.label = newLabel;
-                }
-              }
-            }
-            else if (s.type === "DIVIDER") s.label = newLabel;
-            else if (s.type === "NOTE") s.lines = newLabel.split("\\n");
-            else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") s.label = newLabel;
-            else if (s.type === "ALT_BLOCK") {
-              if (branchIdx !== undefined && s.branches[branchIdx]) {
-                s.branches[branchIdx].condition = newLabel;
-              }
-            }
-            return true;
-          }
-          if (s.type === "ALT_BLOCK") {
-            for (const b of s.branches) if (edit(b.statements)) return true;
-          } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
-            if (edit(s.statements)) return true;
-          }
-        }
-        return false;
-      }
-      edit(newStmts);
-      updateCode(astToString({ ...ast, statements: newStmts }));
-    },
-
-    createMessage: (targetId: string, position: "after" | "inside", branchIdx?: number) => {
-      if (!ast) return;
-      const newStmts = JSON.parse(JSON.stringify(ast.statements));
-      const p1 = ast.participants[0]?.alias || "A";
-      const p2 = ast.participants[1]?.alias || p1;
-      const newMsg = { type: "MESSAGE", id: genId(), from: p1, to: p2, arrow: "->", label: "new message", autoNum: null, idx: -1 };
-
-      function insert(stmts: any[]): boolean {
-        const idx = stmts.findIndex(s => s.id === targetId);
-        if (idx !== -1 && position === "after") {
-          stmts.splice(idx + 1, 0, newMsg);
-          return true;
-        }
-        for (const s of stmts) {
-          if (s.id === targetId && position === "inside") {
-            if (s.type === "ALT_BLOCK") {
-              if (branchIdx !== undefined && s.branches[branchIdx]) {
-                s.branches[branchIdx].statements.push(newMsg);
-                return true;
-              }
-            } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
-              s.statements.push(newMsg);
-              return true;
-            }
-          }
-          if (s.type === "ALT_BLOCK") {
-            for (const b of s.branches) if (insert(b.statements)) return true;
-          } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
-            if (insert(s.statements)) return true;
-          }
-        }
-        return false;
-      }
-      insert(newStmts);
-      updateCode(astToString({ ...ast, statements: newStmts }));
-    },
-
-    createElse: (altId: string, branchIdx: number) => {
-      if (!ast) return;
-      const newStmts = JSON.parse(JSON.stringify(ast.statements));
-      function addElse(stmts: any[]): boolean {
-        for (const s of stmts) {
-          if (s.id === altId && s.type === "ALT_BLOCK") {
-            s.branches.splice(branchIdx + 1, 0, { condition: "", statements: [] });
-            return true;
-          }
-          if (s.type === "ALT_BLOCK") {
-            for (const b of s.branches) if (addElse(b.statements)) return true;
-          } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
-            if (addElse(s.statements)) return true;
-          }
-        }
-        return false;
-      }
-      addElse(newStmts);
-      updateCode(astToString({ ...ast, statements: newStmts }));
-    },
-
-    deleteElse: (altId: string, branchIdx: number) => {
-      if (!ast) return;
-      const newStmts = JSON.parse(JSON.stringify(ast.statements));
-      function delElse(stmts: any[]): boolean {
-        for (const s of stmts) {
-          if (s.id === altId && s.type === "ALT_BLOCK") {
-            s.branches.splice(branchIdx, 1);
-            return true;
-          }
-          if (s.type === "ALT_BLOCK") {
-            for (const b of s.branches) if (delElse(b.statements)) return true;
-          } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
-            if (delElse(s.statements)) return true;
-          }
-        }
-        return false;
-      }
-      delElse(newStmts);
-      updateCode(astToString({ ...ast, statements: newStmts }));
-    },
-
-    createParticipant: (targetAlias: string) => {
-      if (!ast) return;
-      const idx = ast.participants.findIndex(p => p.alias === targetAlias);
-      if (idx === -1) return;
-      const newAlias = "NewPart_" + genId().substring(0, 4);
-      const newP = { alias: newAlias, name: "New Participant", kind: "participant" };
-      const newAst = JSON.parse(JSON.stringify(ast));
-      newAst.participants.splice(idx + 1, 0, newP);
-      updateCode(astToString(newAst));
-    },
-
-    editParticipant: (alias: string, newDeclStr: string) => {
-      if (!ast) return;
-      const t = tokenizeLine(newDeclStr);
-      if (t && t.type === "DECLARATION") {
-        const newAlias = t.alias;
-        const newAst = JSON.parse(JSON.stringify(ast));
-        const pIdx = newAst.participants.findIndex((p: Participant) => p.alias === alias);
-        if (pIdx !== -1) {
-          newAst.participants[pIdx] = { ...newAst.participants[pIdx], kind: t.kind, name: t.name, alias: t.alias, stereoType: t.stereoType, color: t.color };
-        }
-        if (newAlias !== alias) {
-          function rename(stmts: any[]) {
-            stmts.forEach(s => {
-              if (s.type === "MESSAGE") {
-                if (s.from === alias) s.from = newAlias;
-                if (s.to === alias) s.to = newAlias;
-              } else if (s.type === "NOTE") {
-                if (s.p1 === alias) s.p1 = newAlias;
-                if (s.p2 === alias) s.p2 = newAlias;
-              }
-              if (s.type === "ALT_BLOCK") s.branches.forEach((b: any) => rename(b.statements));
-              if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") rename(s.statements);
-            });
-          }
-          rename(newAst.statements);
-        }
-        updateCode(astToString(newAst));
-      }
-    },
-
-    deleteParticipant: (alias: string) => {
-      if (!ast) return;
-      const newAst = JSON.parse(JSON.stringify(ast));
-      newAst.participants = newAst.participants.filter((p: Participant) => p.alias !== alias);
-      function filterRefStmts(stmts: any[]): any[] {
-        return stmts.filter(s => {
-          if (s.type === "MESSAGE" && (s.from === alias || s.to === alias)) return false;
-          if (s.type === "NOTE" && (s.p1 === alias || s.p2 === alias)) return false;
-          if (s.type === "ALT_BLOCK") {
-            s.branches.forEach((b: any) => b.statements = filterRefStmts(b.statements));
-            return s.branches.some((b: any) => b.statements.length > 0) || s.branches.length > 0;
-          }
-          if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
-            s.statements = filterRefStmts(s.statements);
-          }
-          return true;
-        });
-      }
-      newAst.statements = filterRefStmts(newAst.statements);
-      updateCode(astToString(newAst));
-      setSelectedNodeId(null);
-      setClickPosition(null);
-    },
-
-    moveParticipant: (alias: string, direction: "left" | "right") => {
-      if (!ast) return;
-      const idx = ast.participants.findIndex(p => p.alias === alias);
-      if (idx === -1) return;
-      const newAst = JSON.parse(JSON.stringify(ast));
-
-      // Also check if they are in directAliases of a box and swap there if applicable
-      function swapInArr(arr: any[], i1: number, i2: number) {
-        if (i1 >= 0 && i2 >= 0 && i1 < arr.length && i2 < arr.length) {
-          [arr[i1], arr[i2]] = [arr[i2], arr[i1]];
-        }
-      }
-
-      if (direction === "left" && idx > 0) {
-        swapInArr(newAst.participants, idx, idx - 1);
-      } else if (direction === "right" && idx < newAst.participants.length - 1) {
-        swapInArr(newAst.participants, idx, idx + 1);
-      }
-      updateCode(astToString(newAst));
-    }
-  };
-
-  return (
-    <DiagramContext.Provider value={{ code, updateCode, ast, selectedNodeId, setSelectedNodeId, clickPosition, setClickPosition, actions }}>
-      {children}
-    </DiagramContext.Provider>
-  );
-}
+// Diagram actions have been moved to src/browser-based-plantuml-generator/DiagramActions.tsx
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Diagram Actions UI
 // ─────────────────────────────────────────────────────────────────────────────
 
-function findNodeById(ast: DiagramAST, id: string): StatementNode | null {
-  const baseId = id.split(":")[0];
-  function searchStmts(stmts: StatementNode[]): StatementNode | null {
-    for (const s of stmts) {
-      if (s.id === baseId) return s;
-      if (s.type === "ALT_BLOCK") {
-        for (const b of s.branches) {
-          const found = searchStmts(b.statements);
-          if (found) return found;
-        }
-      } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
-        const found = searchStmts(s.statements);
-        if (found) return found;
-      }
-    }
-    return null;
-  }
-  return searchStmts(ast.statements);
-}
+// Diagram actions popup have been moved to src/browser-based-plantuml-generator/DiagramActions.tsx
 
-function DiagramActions() {
-  const { ast, selectedNodeId, clickPosition, actions } = useDiagram();
-  if (!ast || !selectedNodeId || !clickPosition) return null;
-
-  if (selectedNodeId.startsWith("participant:")) {
-    const alias = selectedNodeId.split(":")[1];
-    const p = ast.participants.find(x => x.alias === alias);
-    if (!p) return null;
-    let s = `${p.kind} "${p.name}" as ${p.alias}`;
-    if (p.name === p.alias && !p.name.includes(" ")) s = `${p.kind} ${p.name}`;
-    if (p.stereoType) s += ` <<${p.stereoType}>>`;
-    if (p.color) s += ` ${p.color}`;
-
-    return (
-      <div style={{
-        position: "fixed", left: clickPosition.x, top: clickPosition.y - 8,
-        background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
-        padding: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.5)", zIndex: 100,
-        width: 200, transform: "translate(-50%, -100%)"
-      }}>
-        <div style={{ fontSize: 12, fontWeight: "bold", marginBottom: 8, color: C.text, textAlign: "center" }}>
-          Participant Actions
-        </div>
-        <div style={{ fontSize: 10, color: C.muted, marginBottom: 12, wordBreak: "break-all", textAlign: "center" }}>
-          <span>{s}</span>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <ActionButton onClick={() => actions.createParticipant(alias)} label="Create participant" />
-          <ActionButton onClick={() => {
-            const str = window.prompt("Edit participant:", s);
-            if (str !== null) actions.editParticipant(alias, str);
-          }} label="Edit participant" />
-          <div style={{ display: "flex", gap: 6 }}>
-            <div style={{ flex: 1 }}><ActionButton onClick={() => actions.moveParticipant(alias, "left")} label="Move Left" /></div>
-            <div style={{ flex: 1 }}><ActionButton onClick={() => actions.moveParticipant(alias, "right")} label="Move Right" /></div>
-          </div>
-          <ActionButton onClick={() => actions.deleteParticipant(alias)} label="Delete participant" danger />
-        </div>
-      </div>
-    );
-  }
-
-  const [baseId, branchIdxStr] = selectedNodeId.split(":");
-  const branchIdx = branchIdxStr !== undefined ? parseInt(branchIdxStr, 10) : undefined;
-
-  const node = findNodeById(ast, baseId);
-  if (!node) return null;
-
-  let title = "Node";
-  if (node.type === "MESSAGE") title = "Message";
-  if (node.type === "NOTE") title = "Note";
-  if (node.type === "DIVIDER") title = "Divider";
-  if (node.type === "ALT_BLOCK") title = "Alt Block";
-  if (node.type === "GROUP_BLOCK") title = "Group Block";
-  if (node.type === "LOOP_BLOCK") title = "Loop Block";
-  if (node.type === "BOX_DECL") title = "Box Declaration";
-
-  // Position popover at top center of element
-  // The global click listener gives us x = center, y = top of bounding box
-  return (
-    <div style={{
-      position: "fixed", left: clickPosition.x, top: clickPosition.y - 8,
-      background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
-      padding: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.5)", zIndex: 100,
-      width: 200, transform: "translate(-50%, -100%)"
-    }}>
-      <div style={{ fontSize: 12, fontWeight: "bold", marginBottom: 8, color: C.text, textAlign: "center" }}>
-        {title} Actions
-      </div>
-      {/* Node specifics for preview */}
-      <div style={{ fontSize: 10, color: C.muted, marginBottom: 12, wordBreak: "break-all", textAlign: "center" }}>
-        {node.type === "MESSAGE" && <span>{node.from} ➔ {node.to}</span>}
-        {node.type === "NOTE" && <span>{node.position} {[node.p1, node.p2].filter(Boolean).join(", ")}</span>}
-        {(node.type === "GROUP_BLOCK" || node.type === "LOOP_BLOCK") && <span>{node.label || "(no label)"}</span>}
-        {node.type === "ALT_BLOCK" && <span>{node.branches.map(b => b.condition).join(" / ")}</span>}
-        {node.type === "DIVIDER" && <span>{node.label}</span>}
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {node.type === "MESSAGE" && (
-          <>
-            <ActionButton onClick={() => actions.createMessage(baseId, "after")} label="Create Message" />
-            <ActionButton onClick={() => {
-              const currentStr = node.label ? `${node.from} ${node.arrow} ${node.to}: ${node.label}` : `${node.from} ${node.arrow} ${node.to}`;
-              const newStr = window.prompt("Edit message:", currentStr);
-              if (newStr !== null) actions.editNodeLabel(baseId, newStr);
-            }} label="Edit Message" />
-            <ActionButton onClick={() => actions.deleteNode(baseId)} label="Delete Message" danger />
-          </>
-        )}
-
-        {node.type === "ALT_BLOCK" && branchIdx !== undefined && node.branches[branchIdx] && (
-          <>
-            <div style={{ fontSize: 10, color: C.muted, marginBottom: 4, borderLeft: `2px solid ${C.border}`, paddingLeft: 6, textAlign: "left" }}>
-              {branchIdx === 0 ? "Alt:" : "Else:"} {node.branches[branchIdx].condition || "(empty)"}
-            </div>
-            <ActionButton onClick={() => {
-              const newCond = window.prompt(`Edit ${branchIdx === 0 ? "alt" : "else"} condition:`, node.branches[branchIdx].condition);
-              if (newCond !== null) actions.editNodeLabel(baseId, newCond, branchIdx);
-            }} label="Edit condition" />
-            <ActionButton onClick={() => actions.createMessage(baseId, "inside", branchIdx)} label="Create message" />
-            <ActionButton onClick={() => actions.createElse(baseId, branchIdx)} label="Create else" />
-            {branchIdx > 0 ? (
-              <ActionButton onClick={() => actions.deleteElse(baseId, branchIdx)} label="Delete else" danger />
-            ) : (
-              <ActionButton onClick={() => actions.deleteNode(baseId)} label="Delete alt" danger />
-            )}
-          </>
-        )}
-
-        {node.type === "LOOP_BLOCK" && (
-          <>
-            <ActionButton onClick={() => actions.createMessage(baseId, "inside")} label="Create new message" />
-            <ActionButton onClick={() => {
-              const newLabel = window.prompt("Edit loop:", node.label);
-              if (newLabel !== null) actions.editNodeLabel(baseId, newLabel);
-            }} label="Edit loop" />
-            <ActionButton onClick={() => actions.deleteNode(baseId)} label="Delete loop" danger />
-          </>
-        )}
-
-        {/* Fallback for others */}
-        {node.type !== "MESSAGE" && node.type !== "ALT_BLOCK" && node.type !== "LOOP_BLOCK" && (
-          <ActionButton onClick={() => actions.deleteNode(baseId)} label={`Delete ${title}`} danger />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ActionButton({ onClick, label, danger }: { onClick: () => void, label: string, danger?: boolean }) {
-  const bg = danger ? "#4f1616" : "rgba(255,255,255,0.05)";
-  const color = danger ? "#fca5a5" : C.text;
-  const border = danger ? "#7f1d1d" : C.border;
-  return (
-    <button onClick={onClick}
-      style={{
-        background: bg, color: color, border: `1px solid ${border}`,
-        padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 11,
-        textAlign: "center"
-      }}>
-      {label}
-    </button>
-  );
-}
+// Contexts are defined in src/browser-based-plantuml-generator
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App.tsx
