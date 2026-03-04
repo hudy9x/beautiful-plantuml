@@ -15,6 +15,7 @@ import { shapeBottomOffset, shapeTopOffset } from "./browser-based-plantuml-gene
 import { ParticipantShape } from "./browser-based-plantuml-generator/renderer/shapes";
 import { BlockHeader, DiagramDivider, MessageArrow, NoteBoxSvg, noteH, noteW, SelfArrow, selfMessageH, SvgDefs } from "./browser-based-plantuml-generator/renderer/elements";
 import { InteractiveHoverLayer } from "./browser-based-plantuml-generator/renderer/InteractiveHoverLayer";
+import { ArrowDragLayer, type MessageEndpoint } from "./browser-based-plantuml-generator/renderer/ArrowDragLayer";
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -491,6 +492,55 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
     }
   }
 
+  // Alias at each column index (parallel to shiftedCenters)
+  const aliasAtIndex = participants.map(p => p.alias);
+
+  // Compute message endpoints for drag-to-reroute — recursive through all block types
+  const messageEndpoints: MessageEndpoint[] = [];
+  {
+    function collectEndpoints(stmts: typeof statements, startY: number, depth: number): number {
+      let sy = startY;
+      for (const s of stmts) {
+        if (s.type === "MESSAGE") {
+          const isSelf = s.from === s.to;
+          const rawLines = s.label ? s.label.split("\\n") : [];
+          const dispLines = s.autoNum !== null
+            ? (rawLines.length ? [`${s.autoNum}. ${rawLines[0]}`, ...rawLines.slice(1)] : [`${s.autoNum}.`])
+            : rawLines;
+          const nExtra = Math.max(0, dispLines.length - 1);
+          const rowH = isSelf
+            ? (() => { const labelH = dispLines.length > 0 ? 20 + dispLines.length * 14 + 6 : 20; return labelH + SELF_LOOP_H + 8; })()
+            : MSG_H + nExtra * MSG_LINE_H;
+          const arrowY = isSelf ? sy + rowH - 8 : sy + rowH - MSG_ARROW_BOT;
+          const fromX = aliasToX[s.from] ?? 0;
+          const toX = aliasToX[s.to] ?? fromX;
+          messageEndpoints.push({ id: s.id, fromAlias: s.from, toAlias: s.to, fromX, toX, arrowY, isSelf, selfCX: fromX });
+          sy += rowH + GAP;
+        } else if (s.type === "ALT_BLOCK") {
+          let by = sy;
+          s.branches.forEach(branch => {
+            by += BLOCK_HDR_H + BLOCK_PAD_Y;
+            const innerH = collectEndpoints(branch.statements, by, depth + 1);
+            by += innerH + BLOCK_PAD_Y;
+          });
+          sy += (by - sy) + GAP;
+        } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
+          const innerStart = sy + BLOCK_HDR_H + BLOCK_PAD_Y;
+          const innerH = collectEndpoints(s.statements, innerStart, depth + 1);
+          // drawStmt GROUP/LOOP: totalH = BLOCK_HDR_H + inner.h + BLOCK_PAD_Y
+          // inner.h starts from innerStart, so innerH already accounts for BLOCK_PAD_Y offset
+          sy += BLOCK_HDR_H + innerH + BLOCK_PAD_Y + GAP;
+        } else {
+          // drawBlock returns h = stmtH + GAP already, so no extra GAP needed
+          const r = drawBlock([s], sy, ctx, 0);
+          sy += r.h;
+        }
+      }
+      return sy - startY;
+    }
+    collectEndpoints(statements, timelineY, 0);
+  }
+
   const footerY = timelineY + timelineH + GAP;
   const totalH = footerY + PART_H + 8 + padBottom;
 
@@ -692,6 +742,13 @@ export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
         setPopover={setPopover}
         hStatementPopover={hStatementPopover}
         setHStatementPopover={setHStatementPopover}
+      />
+
+      <ArrowDragLayer
+        messageEndpoints={messageEndpoints}
+        shiftedCenters={shiftedCenters}
+        aliasAtIndex={aliasAtIndex}
+        svgRef={svgRef}
       />
     </svg>
   );

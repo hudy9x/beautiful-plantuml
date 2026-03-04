@@ -26,6 +26,7 @@ export interface DiagramContextType {
     moveParticipant: (alias: string, direction: "left" | "right") => void;
     insertParticipantAt: (index: number, kind?: string) => void;
     insertStatementAt: (afterId: string | null, kind: string) => void;
+    rerouteMessageEndpoint: (id: string, end: "from" | "to", newAlias: string) => void;
   };
 }
 
@@ -328,6 +329,27 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
           newStmts.push(newNode);
         }
       }
+      updateCode(astToString({ ...ast, statements: newStmts }));
+    },
+
+    rerouteMessageEndpoint: (id: string, end: "from" | "to", newAlias: string) => {
+      if (!ast) return;
+      const newStmts: StatementNode[] = JSON.parse(JSON.stringify(ast.statements));
+      function patch(stmts: any[]): boolean {
+        for (const s of stmts) {
+          if (s.id === id && s.type === "MESSAGE") {
+            s[end] = newAlias;
+            return true;
+          }
+          if (s.type === "ALT_BLOCK") {
+            for (const b of s.branches) if (patch(b.statements)) return true;
+          } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
+            if (patch(s.statements)) return true;
+          }
+        }
+        return false;
+      }
+      patch(newStmts);
       updateCode(astToString({ ...ast, statements: newStmts }));
     }
   };
