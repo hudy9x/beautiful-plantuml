@@ -62,10 +62,13 @@ function svgX(clientX: number, svgEl: SVGSVGElement): number {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const HANDLE_R = 7;
-const HANDLE_FILL = "rgba(96,165,250,0.08)";
-const HANDLE_STROKE = "rgba(96,165,250,0.35)";
+const HANDLE_FILL = "transparent";
+const HANDLE_STROKE = "transparent";
 const HANDLE_HOVER_FILL = "rgba(96,165,250,0.35)";
 const HANDLE_HOVER_STROKE = "#60a5fa";
+
+/** Change this to restyle all drag preview visuals (ghost arrow, snap line, dot) */
+const GHOST_COLOR = "#f97316"; // orange
 
 export function ArrowDragLayer({ messageEndpoints, shiftedCenters, aliasAtIndex, svgRef }: ArrowDragLayerProps) {
   const { actions } = useDiagram();
@@ -215,14 +218,14 @@ export function ArrowDragLayer({ messageEndpoints, shiftedCenters, aliasAtIndex,
             <g className="drag-ghost" style={{ pointerEvents: "none" }}>
               {/* Snap indicator */}
               <line x1={snapX} y1={y - 30} x2={snapX} y2={y + 30}
-                stroke="#60a5fa" strokeWidth={1.5} opacity={0.6} />
+                stroke={GHOST_COLOR} strokeWidth={1.5} opacity={0.6} />
               {/* Ghost self-loop */}
               <line x1={cx} y1={loopTop} x2={loopRight} y2={loopTop}
-                stroke="#60a5fa" strokeWidth={2} strokeDasharray="5,3" opacity={0.8} />
+                stroke={GHOST_COLOR} strokeWidth={2} strokeDasharray="5,3" opacity={0.8} />
               <line x1={loopRight} y1={loopTop} x2={loopRight} y2={y}
-                stroke="#60a5fa" strokeWidth={2} strokeDasharray="5,3" opacity={0.8} />
+                stroke={GHOST_COLOR} strokeWidth={2} strokeDasharray="5,3" opacity={0.8} />
               <line x1={loopRight} y1={y} x2={cx} y2={y}
-                stroke="#60a5fa" strokeWidth={2} strokeDasharray="5,3" opacity={0.8} />
+                stroke={GHOST_COLOR} strokeWidth={2} strokeDasharray="5,3" opacity={0.8} />
             </g>
           );
         }
@@ -234,12 +237,12 @@ export function ArrowDragLayer({ messageEndpoints, shiftedCenters, aliasAtIndex,
           <g className="drag-ghost" style={{ pointerEvents: "none" }}>
             {/* Snap indicator on target lifeline */}
             <line x1={snapX} y1={y - 30} x2={snapX} y2={y + 30}
-              stroke="#60a5fa" strokeWidth={1.5} opacity={0.6} />
+              stroke={GHOST_COLOR} strokeWidth={1.5} opacity={0.6} />
             {/* Ghost arrow line */}
             <line x1={x1} y1={y} x2={x2} y2={y}
-              stroke="#60a5fa" strokeWidth={2} strokeDasharray="5,3" opacity={0.8} />
+              stroke={GHOST_COLOR} strokeWidth={2} strokeDasharray="5,3" opacity={0.8} />
             {/* Ghost arrowhead dot at snap end */}
-            <circle cx={snapX} cy={y} r={3} fill="#60a5fa" opacity={0.9} />
+            <circle cx={snapX} cy={y} r={3} fill={GHOST_COLOR} opacity={0.9} />
           </g>
         );
       })()}
