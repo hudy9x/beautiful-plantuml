@@ -387,7 +387,7 @@ function drawBoxBands(
 }
 
 // ── Main SequenceDiagram component ────────────────────────────────────────────
-export function SequenceDiagram() {
+export function SequenceDiagram({ enableHoverLayer = true, enableDragLayer = true }: { enableHoverLayer?: boolean; enableDragLayer?: boolean } = {}) {
   const { ast } = useDiagram();
   if (!ast) return null;
   const { participants, statements, boxes, declMap, title } = ast;
@@ -729,29 +729,33 @@ export function SequenceDiagram() {
         ))}
       </g>
 
-      <InteractiveHoverLayer
-        totalW={totalW}
-        totalH={totalH}
-        shiftedCenters={shiftedCenters}
-        hoverLinesRef={hoverLinesRef}
-        vLineRef={vLineRef}
-        hLineRef={hLineRef}
-        addBtnGroupRef={addBtnGroupRef}
-        hAddBtnGroupRef={hAddBtnGroupRef}
-        lastInsertIndexRef={lastInsertIndexRef}
-        lastHoverAfterIdRef={lastHoverAfterIdRef}
-        popover={popover}
-        setPopover={setPopover}
-        hStatementPopover={hStatementPopover}
-        setHStatementPopover={setHStatementPopover}
-      />
+      {enableHoverLayer && (
+        <InteractiveHoverLayer
+          totalW={totalW}
+          totalH={totalH}
+          shiftedCenters={shiftedCenters}
+          hoverLinesRef={hoverLinesRef}
+          vLineRef={vLineRef}
+          hLineRef={hLineRef}
+          addBtnGroupRef={addBtnGroupRef}
+          hAddBtnGroupRef={hAddBtnGroupRef}
+          lastInsertIndexRef={lastInsertIndexRef}
+          lastHoverAfterIdRef={lastHoverAfterIdRef}
+          popover={popover}
+          setPopover={setPopover}
+          hStatementPopover={hStatementPopover}
+          setHStatementPopover={setHStatementPopover}
+        />
+      )}
 
-      <ArrowDragLayer
-        messageEndpoints={messageEndpoints}
-        shiftedCenters={shiftedCenters}
-        aliasAtIndex={aliasAtIndex}
-        svgRef={svgRef}
-      />
+      {enableDragLayer && (
+        <ArrowDragLayer
+          messageEndpoints={messageEndpoints}
+          shiftedCenters={shiftedCenters}
+          aliasAtIndex={aliasAtIndex}
+          svgRef={svgRef}
+        />
+      )}
     </svg>
   );
 }

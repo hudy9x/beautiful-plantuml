@@ -21,26 +21,26 @@ const SAMPLES: {
   usageCode: string;
   menus: boolean;
   actions: boolean;
+  enableHoverLayer?: boolean;
+  enableDragLayer?: boolean;
 }[] = [
     {
-      title: "1. Minimal",
-      description: "Just render — no interaction needed.",
+      title: "1. Minimal — Read Only",
+      description: "Just render. No hover layer, no drag layer.",
       plantUml: `@startuml
 Alice -> Bob: Hello
 Bob -> Alice: Hi!
 @enduml`,
-      usageCode: `const [code, setCode] = useState(\`
-  @startuml
-  Alice -> Bob: Hello
-  Bob -> Alice: Hi!
-  @enduml
-\`);
-
-<DiagramProvider code={code} onChange={setCode}>
-  <SequenceDiagram />
+      usageCode: `<DiagramProvider code={code} onChange={setCode}>
+  <SequenceDiagram
+    enableHoverLayer={false}
+    enableDragLayer={false}
+  />
 </DiagramProvider>`,
       menus: false,
       actions: false,
+      enableHoverLayer: false,
+      enableDragLayer: false,
     },
     {
       title: "2. With Context Menus",
@@ -68,7 +68,7 @@ Bob -> Alice: Response
     },
     {
       title: "3. Full Featured",
-      description: "All menus + insert toolbar + drag-to-reroute arrows.",
+      description: "All menus + crosshair insert toolbar + drag-to-reroute arrows.",
       plantUml: `@startuml
 participant Alice
 participant Bob
@@ -108,13 +108,15 @@ Bob -> Alice: Result
 
 // ── DemoCard ──────────────────────────────────────────────────────────────────
 
-function DemoCard({ title, description, plantUml, usageCode, menus, actions }: {
+function DemoCard({ title, description, plantUml, usageCode, menus, actions, enableHoverLayer = true, enableDragLayer = true }: {
   title: string;
   description: string;
   plantUml: string;
   usageCode: string;
   menus: boolean;
   actions: boolean;
+  enableHoverLayer?: boolean;
+  enableDragLayer?: boolean;
 }) {
   const [code] = useState(plantUml);
 
@@ -161,7 +163,10 @@ function DemoCard({ title, description, plantUml, usageCode, menus, actions }: {
       {/* Right: live diagram */}
       <div style={{ padding: 20, overflowX: "auto", position: "relative" }}>
         <DiagramProvider code={code} onChange={() => { }}>
-          <SequenceDiagram />
+          <SequenceDiagram
+            enableHoverLayer={enableHoverLayer}
+            enableDragLayer={enableDragLayer}
+          />
           {menus && (
             <>
               <ParticipantMenuBar />
