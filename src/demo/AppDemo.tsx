@@ -11,6 +11,7 @@ import {
   NoteMenuBar,
   MessageMenuBar,
 } from "../beautiful-plantuml";
+import { ThemeSwitcher, type ThemeBase, type ThemeMode } from "../components/ThemeSwitcher";
 
 // ── Samples ───────────────────────────────────────────────────────────────────
 
@@ -108,7 +109,7 @@ Bob -> Alice: Result
 
 // ── DemoCard ──────────────────────────────────────────────────────────────────
 
-function DemoCard({ title, description, plantUml, usageCode, menus, actions, enableHoverLayer = true, enableDragLayer = true }: {
+function DemoCard({ title, description, plantUml, usageCode, menus, actions, enableHoverLayer = true, enableDragLayer = true, theme, mode }: {
   title: string;
   description: string;
   plantUml: string;
@@ -117,8 +118,11 @@ function DemoCard({ title, description, plantUml, usageCode, menus, actions, ena
   actions: boolean;
   enableHoverLayer?: boolean;
   enableDragLayer?: boolean;
+  theme?: ThemeBase;
+  mode?: ThemeMode;
 }) {
   const [code] = useState(plantUml);
+  const fullTheme = theme && mode ? `${theme}-${mode}` as any : 'zinc-dark';
 
   return (
     <div style={{
@@ -161,8 +165,8 @@ function DemoCard({ title, description, plantUml, usageCode, menus, actions, ena
       </div>
 
       {/* Right: live diagram */}
-      <div style={{ padding: 20, overflowX: "auto", position: "relative" }}>
-        <DiagramProvider code={code} onChange={() => { }}>
+      <div style={{ padding: 20, overflowX: "auto", position: "relative", background: "var(--c-bg)" }}>
+        <DiagramProvider code={code} onChange={() => { }} theme={fullTheme}>
           <SequenceDiagram
             enableHoverLayer={enableHoverLayer}
             enableDragLayer={enableDragLayer}
@@ -188,15 +192,41 @@ function DemoCard({ title, description, plantUml, usageCode, menus, actions, ena
 // ── AppDemo ───────────────────────────────────────────────────────────────────
 
 export default function AppDemo() {
+  const [theme, setTheme] = useState<ThemeBase>('zinc');
+  const [mode, setMode] = useState<ThemeMode>('dark');
+
+  const bgColors: Record<ThemeBase, Record<ThemeMode, string>> = {
+    default: { light: "#ffffff", dark: "#0d1117" },
+    zinc: { light: "#ffffff", dark: "#09090b" },
+    nord: { light: "#eceff4", dark: "#2e3440" },
+    catppuccin: { light: "#eff1f5", dark: "#1e1e2e" },
+    tokyo: { light: "#d5d6db", dark: "#1a1b26" },
+    dracula: { light: "#f8f8f2", dark: "#282a36" },
+    github: { light: "#ffffff", dark: "#0d1117" },
+    solarized: { light: "#fdf6e3", dark: "#002b36" },
+  };
+  const textColors: Record<ThemeBase, Record<ThemeMode, string>> = {
+    default: { light: "#24292f", dark: "#cdd9e5" },
+    zinc: { light: "#09090b", dark: "#fafafa" },
+    nord: { light: "#2e3440", dark: "#eceff4" },
+    catppuccin: { light: "#4c4f69", dark: "#cdd6f4" },
+    tokyo: { light: "#343b58", dark: "#c0caf5" },
+    dracula: { light: "#282a36", dark: "#f8f8f2" },
+    github: { light: "#24292f", dark: "#cdd9e5" },
+    solarized: { light: "#657b83", dark: "#839496" },
+  };
+
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#0d1117",
-      color: "#cdd9e5",
+      background: bgColors[theme][mode],
+      color: textColors[theme][mode],
       fontFamily: "'JetBrains Mono', monospace",
       padding: "28px 32px",
     }}>
-      <div style={{ marginBottom: 28 }}>
+      <ThemeSwitcher theme={theme} mode={mode} onChangeTheme={setTheme} onChangeMode={setMode} />
+
+      <div style={{ marginBottom: 28, marginTop: 40 }}>
         <h1 style={{ margin: 0, fontSize: 18, fontWeight: "bold", color: "#e6edf3" }}>
           PlantUML Sequence Diagram
         </h1>
@@ -207,7 +237,7 @@ export default function AppDemo() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         {SAMPLES.map(s => (
-          <DemoCard key={s.title} {...s} />
+          <DemoCard key={s.title} {...s} theme={theme} mode={mode} />
         ))}
       </div>
     </div>

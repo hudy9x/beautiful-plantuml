@@ -44,9 +44,9 @@ export function useDiagramActions() {
   return useDiagram().actions;
 }
 
-type ThemeName = "dark" | "light";
+type ThemeName = keyof typeof THEMES;
 
-export function DiagramProvider({ children, code, updateCode, onChange, theme = "dark" }: { children: React.ReactNode, code: string, updateCode?: (c: string, ast: DiagramAST | null) => void, onChange?: (c: string, ast: DiagramAST | null) => void, theme?: ThemeName | Record<string, string> }) {
+export function DiagramProvider({ children, code, updateCode, onChange, theme = "zinc-dark" }: { children: React.ReactNode, code: string, updateCode?: (c: string, ast: DiagramAST | null) => void, onChange?: (c: string, ast: DiagramAST | null) => void, theme?: ThemeName | Record<string, string> }) {
   const _onChange = onChange ?? updateCode ?? (() => { });
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [clickPosition, setClickPosition] = useState<{ x: number, y: number } | null>(null);
