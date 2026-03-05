@@ -167,6 +167,40 @@ function App() {
 }
 ```
 
+## 🎨 Theming
+
+Beautiful PlantUML comes with 8 built-in themes, each with a `light` and `dark` variant. You can set the theme by passing the `theme` prop to `<DiagramProvider>`.
+
+```tsx
+<DiagramProvider code={code} theme="catppuccin-dark">
+  <SequenceDiagram />
+</DiagramProvider>
+```
+
+**Available Built-in Themes:**
+- `default-light` / `default-dark`
+- `zinc-light` / `zinc-dark` *(Default)*
+- `nord-light` / `nord-dark`
+- `catppuccin-light` / `catppuccin-dark`
+- `tokyo-light` / `tokyo-dark`
+- `dracula-light` / `dracula-dark`
+- `github-light` / `github-dark`
+- `solarized-light` / `solarized-dark`
+
+**Custom Themes:**
+You can also pass a custom object of CSS variables to completely override the diagram colors:
+
+```tsx
+<DiagramProvider code={code} theme={{
+  "--c-bg": "#ffffff",
+  "--c-border": "#cccccc",
+  "--c-arrow": "#000000",
+  // ... other tokens
+}}>
+  <SequenceDiagram />
+</DiagramProvider>
+```
+
 ## 🛠 API Reference
 
 ### `<DiagramProvider>`
@@ -177,7 +211,7 @@ The core context provider that parses the PlantUML string and maintains state.
 |------|------|---------|-------------|
 | `code` | `string` | **Required** | The raw PlantUML text. |
 | `onChange` | `(code: string, ast: DiagramAST \| null) => void` | `undefined` | Callback fired when the diagram is edited via interactivity. |
-| `theme` | `"dark" \| "light" \| Record<string, string>` | `"dark"` | Base theme mode, or a custom CSS variable map. |
+| `theme` | `ThemeName \| Record<string, string>` | `"zinc-dark"` | Built-in theme name, or a custom CSS variable map. |
 
 ### `<SequenceDiagram>`
 
