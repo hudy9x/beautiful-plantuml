@@ -6,10 +6,10 @@ import { useDiagram } from "./DiagramContext";
 // types/index.ts
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { type ParticipantKind, type DiagramAST, type Participant, type StatementNode, type BoxDeclNode, type MessageNode, type NoteNode, type DividerNode } from "./types";
+import { type Participant, type StatementNode, type BoxDeclNode } from "./types";
 import { C } from "./theme";
 import { boxDepth, resolveBoxRGB, shapeHalfW } from "./utils";
-import { BLOCK_HDR_H, BLOCK_PAD_X, BLOCK_PAD_Y, BOX_GAP, BOX_SHAPE_PAD, BOX_TITLE_H, COL_MIN_W, DIVIDER_H, GAP, MSG_ARROW_BOT, MSG_H, MSG_LABEL_OFF, MSG_LINE_H, NOTE_FONT, NOTE_LINE_H, NOTE_PAD_H, NOTE_PAD_V, PART_H, SELF_LOOP_GAP, SELF_LOOP_H, SELF_LOOP_W } from "./layout/constants";
+import { BLOCK_HDR_H, BLOCK_PAD_X, BLOCK_PAD_Y, BOX_GAP, BOX_SHAPE_PAD, BOX_TITLE_H, COL_MIN_W, DIVIDER_H, GAP, MSG_ARROW_BOT, MSG_H, MSG_LINE_H, PART_H, SELF_LOOP_H } from "./layout/constants";
 import { computeColWidths } from "./layout/colwidth";
 import { shapeBottomOffset, shapeTopOffset } from "./layout/shapes";
 import { ParticipantShape } from "./renderer/shapes";

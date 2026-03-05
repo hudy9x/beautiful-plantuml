@@ -1,4 +1,4 @@
-import React from "react";
+
 import { useDiagram } from "../../DiagramContext";
 import { ActionButton } from "../../ActionButton";
 import { MenuPopover } from "./MenuPopover";

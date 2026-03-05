@@ -15,20 +15,7 @@ export function SvgDefs() {
   return <defs>{mk(MK_SOLID, C.arrow)}{mk(MK_DASHED, C.arrow)}</defs>;
 }
 
-// ── Lifelines ─────────────────────────────────────────────────────────────────
-// FIX #2: lifelines are drawn FIRST (lowest z-order), then blocks draw opaque
-// background rects that visually cover the lifeline in block header regions.
-function Lifelines({ xs, y1, y2 }: { xs: number[]; y1: number; y2: number }) {
-  return (
-    <g className="lifelines">
-      {xs.map((x, i) => (
-        <line key={i} x1={x} y1={y1} x2={x} y2={y2}
-          stroke={C.lifeline} strokeWidth={2} strokeDasharray="6,4"
-          className="lifeline" />
-      ))}
-    </g>
-  );
-}
+
 
 // ── Message arrow  ─────────────────────────────────────────────────────────────
 // FIX #3: autonumber is prepended as "N. " to the label text — no separate badge.
