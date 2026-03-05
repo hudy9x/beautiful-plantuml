@@ -387,7 +387,9 @@ function drawBoxBands(
 }
 
 // ── Main SequenceDiagram component ────────────────────────────────────────────
-export function SequenceDiagram({ ast }: { ast: DiagramAST }) {
+export function SequenceDiagram() {
+  const { ast } = useDiagram();
+  if (!ast) return null;
   const { participants, statements, boxes, declMap, title } = ast;
   if (!participants.length) return null;
 

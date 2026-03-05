@@ -168,7 +168,7 @@ function PreviewPanel({
   );
 }
 
-function App() {
+function ComplexDemo() {
   const [input, setInput] = useState(SAMPLES[5].code);
   const [ast, setAst] = useState<DiagramAST | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -215,4 +215,4 @@ function App() {
   );
 }
 
-export default App;
+export default ComplexDemo;

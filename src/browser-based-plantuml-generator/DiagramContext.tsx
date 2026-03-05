@@ -1,8 +1,10 @@
-import React, { useState, createContext, useContext } from "react";
+import React, { useState, useEffect, createContext, useContext } from "react";
 import type { DiagramAST, Participant, StatementNode } from "./types";
 import { astToString } from "./parser/serializer";
 import { genId } from "./utils";
 import { tokenizeLine } from "./parser/tokenizer";
+import { THEMES } from "./theme";
+import { parse } from "./parser/parser";
 
 export interface DiagramContextType {
   code: string;
@@ -42,10 +44,37 @@ export function useDiagramActions() {
   return useDiagram().actions;
 }
 
-export function DiagramProvider({ children, code, updateCode, ast }: { children: React.ReactNode, code: string, updateCode: (c: string) => void, ast: DiagramAST | null }) {
+type ThemeName = "dark" | "light";
+
+export function DiagramProvider({ children, code, updateCode, onChange, theme = "dark" }: { children: React.ReactNode, code: string, updateCode?: (c: string, ast: DiagramAST | null) => void, onChange?: (c: string, ast: DiagramAST | null) => void, theme?: ThemeName | Record<string, string> }) {
+  const _onChange = onChange ?? updateCode ?? (() => { });
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [clickPosition, setClickPosition] = useState<{ x: number, y: number } | null>(null);
   const [diagramPadding, setDiagramPadding] = useState({ top: 40, right: 40, bottom: 40, left: 40 });
+  const [ast, setAst] = useState<DiagramAST | null>(() => { try { return parse(code); } catch { return null; } });
+
+  // Re-parse whenever code changes
+  useEffect(() => {
+    try { setAst(parse(code)); }
+    catch { setAst(null); }
+  }, [code]);
+
+  // Inject theme CSS variables so var(--c-*) resolves in the SVG renderer
+  useEffect(() => {
+    const tokens: Record<string, string> =
+      typeof theme === "string" ? (THEMES[theme] as Record<string, string>) : theme;
+    for (const key in tokens) {
+      document.body.style.setProperty(key, tokens[key]);
+    }
+  }, [theme]);
+
+  // Wrap onChange so it always ships the fresh ast alongside the new code
+  const _updateCode = (newCode: string) => {
+    let newAst: DiagramAST | null = null;
+    try { newAst = parse(newCode); } catch { newAst = null; }
+    setAst(newAst);
+    _onChange(newCode, newAst);
+  };
 
   const actions = {
     deleteNode: (id: string) => {
@@ -65,7 +94,7 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
         });
       }
       const newAst = { ...ast, statements: filterStmts([...ast.statements]) };
-      updateCode(astToString(newAst));
+      _updateCode(astToString(newAst));
       setSelectedNodeId(null);
       setClickPosition(null);
     },
@@ -108,7 +137,7 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
         return false;
       }
       edit(newStmts);
-      updateCode(astToString({ ...ast, statements: newStmts }));
+      _updateCode(astToString({ ...ast, statements: newStmts }));
     },
 
     createMessage: (targetId: string, position: "after" | "inside", branchIdx?: number) => {
@@ -145,7 +174,7 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
         return false;
       }
       insert(newStmts);
-      updateCode(astToString({ ...ast, statements: newStmts }));
+      _updateCode(astToString({ ...ast, statements: newStmts }));
     },
 
     createElse: (altId: string, branchIdx: number) => {
@@ -166,7 +195,7 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
         return false;
       }
       addElse(newStmts);
-      updateCode(astToString({ ...ast, statements: newStmts }));
+      _updateCode(astToString({ ...ast, statements: newStmts }));
     },
 
     deleteElse: (altId: string, branchIdx: number) => {
@@ -187,7 +216,7 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
         return false;
       }
       delElse(newStmts);
-      updateCode(astToString({ ...ast, statements: newStmts }));
+      _updateCode(astToString({ ...ast, statements: newStmts }));
     },
 
     createParticipant: (targetAlias: string) => {
@@ -198,7 +227,7 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
       const newP = { alias: newAlias, name: "New Participant", kind: "participant" };
       const newAst = JSON.parse(JSON.stringify(ast));
       newAst.participants.splice(idx + 1, 0, newP);
-      updateCode(astToString(newAst));
+      _updateCode(astToString(newAst));
     },
 
     editParticipant: (alias: string, newDeclStr: string) => {
@@ -227,7 +256,7 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
           }
           rename(newAst.statements);
         }
-        updateCode(astToString(newAst));
+        _updateCode(astToString(newAst));
       }
     },
 
@@ -250,7 +279,7 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
         });
       }
       newAst.statements = filterRefStmts(newAst.statements);
-      updateCode(astToString(newAst));
+      _updateCode(astToString(newAst));
       setSelectedNodeId(null);
       setClickPosition(null);
     },
@@ -273,7 +302,7 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
       } else if (direction === "right" && idx < newAst.participants.length - 1) {
         swapInArr(newAst.participants, idx, idx + 1);
       }
-      updateCode(astToString(newAst));
+      _updateCode(astToString(newAst));
     },
 
     insertParticipantAt: (index: number, kind?: string) => {
@@ -284,7 +313,7 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
       const newAst = JSON.parse(JSON.stringify(ast));
       const safeIndex = Math.max(0, Math.min(newAst.participants.length, index));
       newAst.participants.splice(safeIndex, 0, newP);
-      updateCode(astToString(newAst));
+      _updateCode(astToString(newAst));
     },
 
     insertStatementAt: (afterId: string | null, kind: string) => {
@@ -329,7 +358,7 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
           newStmts.push(newNode);
         }
       }
-      updateCode(astToString({ ...ast, statements: newStmts }));
+      _updateCode(astToString({ ...ast, statements: newStmts }));
     },
 
     rerouteMessageEndpoint: (id: string, end: "from" | "to", newAlias: string) => {
@@ -350,12 +379,12 @@ export function DiagramProvider({ children, code, updateCode, ast }: { children:
         return false;
       }
       patch(newStmts);
-      updateCode(astToString({ ...ast, statements: newStmts }));
+      _updateCode(astToString({ ...ast, statements: newStmts }));
     }
   };
 
   return (
-    <DiagramContext.Provider value={{ code, updateCode, ast, selectedNodeId, setSelectedNodeId, clickPosition, setClickPosition, diagramPadding, setDiagramPadding, actions }}>
+    <DiagramContext.Provider value={{ code, updateCode: _updateCode, ast, selectedNodeId, setSelectedNodeId, clickPosition, setClickPosition, diagramPadding, setDiagramPadding, actions }}>
       {children}
     </DiagramContext.Provider>
   );
