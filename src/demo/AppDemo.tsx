@@ -1,81 +1,75 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
-  // Core
   DiagramProvider,
   SequenceDiagram,
-  // Built-in menus (use some, skip others)
+  DiagramActions,
   ParticipantMenuBar,
   GroupMenuBar,
   LoopMenuBar,
   AltMenuBar,
   DividerMenuBar,
   NoteMenuBar,
-  // Hooks
-  useDiagram,
-  useDiagramActions,
   MessageMenuBar,
 } from "../browser-based-plantuml-generator";
 
-// ── Custom message menu ───────────────────────────────────────────────────────
-// Instead of using the built-in <MessageMenuBar />, we build our own.
-function MyMessageMenu() {
-  const { selectedNodeId, clickPosition } = useDiagram();
-  const actions = useDiagramActions();
+// ── Samples ───────────────────────────────────────────────────────────────────
 
-  if (!selectedNodeId || !clickPosition) return null;
-  if (selectedNodeId.startsWith("participant:") || selectedNodeId.includes(":")) return null;
+const SAMPLES: {
+  title: string;
+  description: string;
+  plantUml: string;
+  usageCode: string;
+  menus: boolean;
+  actions: boolean;
+}[] = [
+    {
+      title: "1. Minimal",
+      description: "Just render — no interaction needed.",
+      plantUml: `@startuml
+Alice -> Bob: Hello
+Bob -> Alice: Hi!
+@enduml`,
+      usageCode: `const [code, setCode] = useState(\`
+  @startuml
+  Alice -> Bob: Hello
+  Bob -> Alice: Hi!
+  @enduml
+\`);
 
-  return (
-    <div style={{
-      position: "fixed",
-      left: clickPosition.x,
-      top: clickPosition.y - 8,
-      background: "#1e1b4b",
-      border: "1px solid #6366f1",
-      borderRadius: 10,
-      padding: "10px 14px",
-      boxShadow: "0 8px 24px rgba(99,102,241,0.4)",
-      zIndex: 100,
-      minWidth: 180,
-      transform: "translate(-50%, -100%)",
-    }}>
-      <div style={{ fontSize: 11, fontWeight: "bold", color: "#a5b4fc", marginBottom: 8 }}>
-        ✉ Message Actions
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <button
-          onClick={() => actions.createMessage(selectedNodeId, "after")}
-          style={btnStyle("#6366f1")}
-        >
-          + Create message below
-        </button>
-        <button
-          onClick={() => actions.deleteNode(selectedNodeId)}
-          style={btnStyle("#dc2626")}
-        >
-          🗑 Delete message
-        </button>
-      </div>
-    </div>
-  );
-}
+<DiagramProvider code={code} onChange={setCode}>
+  <SequenceDiagram />
+</DiagramProvider>`,
+      menus: false,
+      actions: false,
+    },
+    {
+      title: "2. With Context Menus",
+      description: "Click any element to edit via context menus.",
+      plantUml: `@startuml
+participant Alice
+participant Bob
 
-function btnStyle(color: string): React.CSSProperties {
-  return {
-    background: `${color}22`,
-    border: `1px solid ${color}`,
-    color: "#e2e8f0",
-    borderRadius: 6,
-    padding: "5px 10px",
-    fontSize: 11,
-    cursor: "pointer",
-    textAlign: "left",
-    fontFamily: "inherit",
-  };
-}
+Alice -> Bob: Request
+Bob -> Alice: Response
+@enduml`,
+      usageCode: `<DiagramProvider code={code} onChange={setCode}>
+  <SequenceDiagram />
 
-// ── Sample code ───────────────────────────────────────────────────────────────
-const SAMPLE = `@startuml
+  <ParticipantMenuBar />
+  <MessageMenuBar />
+  <AltMenuBar />
+  <GroupMenuBar />
+  <LoopMenuBar />
+  <DividerMenuBar />
+  <NoteMenuBar />
+</DiagramProvider>`,
+      menus: true,
+      actions: false,
+    },
+    {
+      title: "3. Full Featured",
+      description: "All menus + insert toolbar + drag-to-reroute arrows.",
+      plantUml: `@startuml
 participant Alice
 participant Bob
 participant Carol
@@ -84,47 +78,133 @@ Alice -> Bob: Hello
 Bob -> Carol: Forward
 group Processing
   Carol -> Carol: Think
-  Carol -> Bob: Done
+  alt success
+    Carol -> Bob: Done
+  else error
+    Carol -> Bob: Failed
+  end
 end
+note right of Bob: Result ready
 Bob -> Alice: Result
-@enduml`;
+@enduml`,
+      usageCode: `<DiagramProvider code={code} onChange={setCode}>
+  <SequenceDiagram />
+
+  <ParticipantMenuBar />
+  <MessageMenuBar />
+  <AltMenuBar />
+  <GroupMenuBar />
+  <LoopMenuBar />
+  <DividerMenuBar />
+  <NoteMenuBar />
+
+  {/* All-in-one toolbar: insert + drag */}
+  <DiagramActions />
+</DiagramProvider>`,
+      menus: true,
+      actions: true,
+    },
+  ];
+
+// ── DemoCard ──────────────────────────────────────────────────────────────────
+
+function DemoCard({ title, description, plantUml, usageCode, menus, actions }: {
+  title: string;
+  description: string;
+  plantUml: string;
+  usageCode: string;
+  menus: boolean;
+  actions: boolean;
+}) {
+  const [code] = useState(plantUml);
+
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "380px 1fr",
+      border: "1px solid #21262d",
+      borderRadius: 10,
+      overflow: "hidden",
+      background: "#161b22",
+    }}>
+      {/* Left: usage code */}
+      <div style={{
+        borderRight: "1px solid #21262d",
+        display: "flex",
+        flexDirection: "column",
+      }}>
+        <div style={{
+          padding: "10px 16px",
+          borderBottom: "1px solid #21262d",
+          background: "#0d1117",
+        }}>
+          <div style={{ fontSize: 12, fontWeight: "bold", color: "#79c0ff" }}>{title}</div>
+          <div style={{ fontSize: 11, color: "#768390", marginTop: 3 }}>{description}</div>
+        </div>
+        <pre style={{
+          margin: 0,
+          flex: 1,
+          background: "#0d1117",
+          color: "#cdd9e5",
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 11,
+          lineHeight: 1.75,
+          padding: "14px 16px",
+          overflowX: "auto",
+          whiteSpace: "pre",
+          textAlign: "left",
+        }}>
+          {usageCode}
+        </pre>
+      </div>
+
+      {/* Right: live diagram */}
+      <div style={{ padding: 20, overflowX: "auto", position: "relative" }}>
+        <DiagramProvider code={code} onChange={() => { }}>
+          <SequenceDiagram />
+          {menus && (
+            <>
+              <ParticipantMenuBar />
+              <MessageMenuBar />
+              <AltMenuBar />
+              <GroupMenuBar />
+              <LoopMenuBar />
+              <DividerMenuBar />
+              <NoteMenuBar />
+            </>
+          )}
+          {actions && <DiagramActions />}
+        </DiagramProvider>
+      </div>
+    </div>
+  );
+}
 
 // ── AppDemo ───────────────────────────────────────────────────────────────────
-export default function AppDemo() {
-  const [code, setCode] = useState(SAMPLE);
 
+export default function AppDemo() {
   return (
     <div style={{
       minHeight: "100vh",
       background: "#0d1117",
       color: "#cdd9e5",
       fontFamily: "'JetBrains Mono', monospace",
-      padding: 24,
+      padding: "28px 32px",
     }}>
-      <div style={{ fontSize: 13, fontWeight: "bold", color: "#a5b4fc", marginBottom: 16 }}>
-        Custom Wiring Demo
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ margin: 0, fontSize: 18, fontWeight: "bold", color: "#e6edf3" }}>
+          PlantUML Sequence Diagram
+        </h1>
+        <p style={{ margin: "6px 0 0", fontSize: 12, color: "#768390" }}>
+          Usage examples — from minimal to full-featured.
+        </p>
       </div>
 
-      {/* DiagramProvider injects the dark theme CSS variables automatically */}
-      <DiagramProvider code={code} onChange={(newCode) => setCode(newCode)}>
-
-        {/* Diagram SVG */}
-        <SequenceDiagram />
-
-        {/* Custom message menu (replaces built-in MessageMenuBar) */}
-        {/* <MyMessageMenu /> */}
-
-        {/* Built-in menus for everything else */}
-        <ParticipantMenuBar />
-        <AltMenuBar />
-        <GroupMenuBar />
-        <LoopMenuBar />
-        <DividerMenuBar />
-        <NoteMenuBar />
-        <MessageMenuBar />
-        {/* MessageMenuBar intentionally omitted — replaced by MyMessageMenu above */}
-
-      </DiagramProvider>
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {SAMPLES.map(s => (
+          <DemoCard key={s.title} {...s} />
+        ))}
+      </div>
     </div>
   );
 }
