@@ -14,7 +14,7 @@ import {
   useDiagram,
   useDiagramActions,
   MessageMenuBar,
-} from "./browser-based-plantuml-generator";
+} from "../browser-based-plantuml-generator";
 
 // ── Custom message menu ───────────────────────────────────────────────────────
 // Instead of using the built-in <MessageMenuBar />, we build our own.
