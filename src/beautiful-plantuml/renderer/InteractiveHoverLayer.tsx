@@ -4,6 +4,7 @@ import { useDiagram } from "../DiagramContext";
 import { PARTICIPANT_KINDS } from "../types";
 import { C } from "../theme";
 import { ParticipantShape } from "./shapes";
+import { StatementPopover } from "./menus/StatementPopover";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,16 +27,7 @@ interface InteractiveHoverLayerProps {
   setHStatementPopover: React.Dispatch<React.SetStateAction<{ x: number; y: number; afterId: string | null } | null>>;
 }
 
-// ── Statement kind definitions ────────────────────────────────────────────────
-
-const STATEMENT_KINDS = [
-  { kind: "MESSAGE", label: "Message", icon: "💬" },
-  { kind: "ALT", label: "Alt / Else", icon: "⚡" },
-  { kind: "LOOP", label: "Loop", icon: "🔁" },
-  { kind: "GROUP", label: "Group", icon: "📦" },
-  { kind: "DIVIDER", label: "Divider", icon: "➖" },
-  { kind: "NOTE_LEFT", label: "Note Left", icon: "📝" },
-] as const;
+// ── Types ────────────────────────────────────────────────────────────────────
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -153,42 +145,15 @@ export function InteractiveHoverLayer({
 
       {/* ── Statement-kind popover (horizontal + button) ── */}
       {hStatementPopover && createPortal(
-        <div
-          style={{
-            position: "fixed", left: hStatementPopover.x, top: hStatementPopover.y + 16,
-            background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
-            padding: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.5)", zIndex: 9999,
-            transform: "translateX(-50%)",
-            display: "flex", flexDirection: "column", gap: 2,
-            minWidth: 160,
+        <StatementPopover
+          x={hStatementPopover.x}
+          y={hStatementPopover.y}
+          afterId={hStatementPopover.afterId}
+          onClose={() => setHStatementPopover(null)}
+          hoverLinesHide={() => {
+            if (hoverLinesRef.current) hoverLinesRef.current.style.display = "none";
           }}
-          onClick={e => e.stopPropagation()}
-        >
-          <div style={{ fontSize: 11, fontWeight: "bold", padding: "4px 8px", color: C.text, textAlign: "center", borderBottom: `1px solid ${C.border}`, marginBottom: 2 }}>
-            Insert Statement
-          </div>
-          {STATEMENT_KINDS.map(({ kind, label, icon }) => (
-            <button
-              key={kind}
-              style={{
-                background: "transparent", border: "none", color: C.text,
-                fontSize: 12, padding: "7px 10px", textAlign: "left",
-                cursor: "pointer", borderRadius: 4,
-                display: "flex", alignItems: "center", gap: 8,
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
-              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-              onClick={() => {
-                actions.insertStatementAt(hStatementPopover.afterId, kind);
-                setHStatementPopover(null);
-                if (hoverLinesRef.current) hoverLinesRef.current.style.display = "none";
-              }}
-            >
-              <span style={{ fontSize: 14 }}>{icon}</span>
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>,
+        />,
         document.body
       )}
     </>

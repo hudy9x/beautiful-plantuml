@@ -2,6 +2,7 @@
 import { useDiagram } from "../../DiagramContext";
 import { ActionButton } from "../../ActionButton";
 import { MenuPopover } from "./MenuPopover";
+import { EditIcon, MessageIcon, DeleteIcon } from "../../icons";
 
 function findNode(ast: any, id: string): any {
   function search(stmts: any[]): any {
@@ -29,12 +30,14 @@ export function GroupMenuBar() {
 
   return (
     <MenuPopover position={clickPosition} title="Group Actions" subtitle={<span>{node.label || "(no label)"}</span>}>
-      <ActionButton onClick={() => {
-        const newLbl = window.prompt("Edit group label:", node.label);
-        if (newLbl !== null) actions.editNodeLabel(selectedNodeId, newLbl);
-      }} label="Edit header" />
-      <ActionButton onClick={() => actions.createMessage(selectedNodeId, "inside")} label="Create message" />
-      <ActionButton onClick={() => actions.deleteNode(selectedNodeId)} label="Delete block" danger />
+      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "center" }}>
+        <ActionButton icon={<EditIcon width={14} height={14} />} onClick={() => {
+          const newLbl = window.prompt("Edit group label:", node.label);
+          if (newLbl !== null) actions.editNodeLabel(selectedNodeId, newLbl);
+        }} label="Edit header" />
+        <ActionButton icon={<MessageIcon width={14} height={14} />} onClick={() => actions.createMessage(selectedNodeId, "inside")} label="Create message" />
+        <ActionButton icon={<DeleteIcon width={14} height={14} />} onClick={() => actions.deleteNode(selectedNodeId)} label="Delete block" danger />
+      </div>
     </MenuPopover>
   );
 }

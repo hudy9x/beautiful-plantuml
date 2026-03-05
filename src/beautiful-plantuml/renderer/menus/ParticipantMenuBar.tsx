@@ -2,6 +2,7 @@
 import { useDiagram } from "../../DiagramContext";
 import { ActionButton } from "../../ActionButton";
 import { MenuPopover } from "./MenuPopover";
+import { ParticipantIcon, EditIcon, DeleteIcon, MoveLeftIcon, MoveRightIcon } from "../../icons";
 
 /**
  * Shows when a participant is selected.
@@ -23,20 +24,16 @@ export function ParticipantMenuBar() {
 
   return (
     <MenuPopover position={clickPosition} title="Participant Actions" subtitle={<span>{declStr}</span>}>
-      <ActionButton onClick={() => actions.createParticipant(alias)} label="Create participant" />
-      <ActionButton onClick={() => {
-        const str = window.prompt("Edit participant:", declStr);
-        if (str !== null) actions.editParticipant(alias, str);
-      }} label="Edit participant" />
-      <div style={{ display: "flex", gap: 6 }}>
-        <div style={{ flex: 1 }}>
-          <ActionButton onClick={() => actions.moveParticipant(alias, "left")} label="Move Left" />
-        </div>
-        <div style={{ flex: 1 }}>
-          <ActionButton onClick={() => actions.moveParticipant(alias, "right")} label="Move Right" />
-        </div>
+      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "center" }}>
+        <ActionButton icon={<ParticipantIcon width={14} height={14} />} onClick={() => actions.createParticipant(alias)} label="Create participant" />
+        <ActionButton icon={<EditIcon width={14} height={14} />} onClick={() => {
+          const str = window.prompt("Edit participant:", declStr);
+          if (str !== null) actions.editParticipant(alias, str);
+        }} label="Edit participant" />
+        <ActionButton icon={<MoveLeftIcon width={14} height={14} />} onClick={() => actions.moveParticipant(alias, "left")} label="Move Left" />
+        <ActionButton icon={<MoveRightIcon width={14} height={14} />} onClick={() => actions.moveParticipant(alias, "right")} label="Move Right" />
+        <ActionButton icon={<DeleteIcon width={14} height={14} />} onClick={() => actions.deleteParticipant(alias)} label="Delete participant" danger />
       </div>
-      <ActionButton onClick={() => actions.deleteParticipant(alias)} label="Delete participant" danger />
     </MenuPopover>
   );
 }

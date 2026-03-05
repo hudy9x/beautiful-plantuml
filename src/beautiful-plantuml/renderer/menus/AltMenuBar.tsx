@@ -3,6 +3,7 @@ import { useDiagram } from "../../DiagramContext";
 import { ActionButton } from "../../ActionButton";
 import { MenuPopover } from "./MenuPopover";
 import { C } from "../../theme";
+import { EditIcon, MessageIcon, DeleteIcon, ElseIcon } from "../../icons";
 
 function findNode(ast: any, id: string): any {
   function search(stmts: any[]): any {
@@ -47,17 +48,19 @@ export function AltMenuBar() {
         </div>
       }
     >
-      <ActionButton onClick={() => {
-        const newCond = window.prompt(`Edit ${label.toLowerCase()} condition:`, condition);
-        if (newCond !== null) actions.editNodeLabel(baseId, newCond, branchIdx);
-      }} label="Edit condition" />
-      <ActionButton onClick={() => actions.createMessage(baseId, "inside", branchIdx)} label="Create message" />
-      <ActionButton onClick={() => actions.createElse(baseId, branchIdx)} label="Create else" />
-      {!isAlt ? (
-        <ActionButton onClick={() => actions.deleteElse(baseId, branchIdx)} label="Delete else" danger />
-      ) : (
-        <ActionButton onClick={() => actions.deleteNode(baseId)} label="Delete alt" danger />
-      )}
+      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "center" }}>
+        <ActionButton icon={<EditIcon width={14} height={14} />} onClick={() => {
+          const newCond = window.prompt(`Edit ${label.toLowerCase()} condition:`, condition);
+          if (newCond !== null) actions.editNodeLabel(baseId, newCond, branchIdx);
+        }} label="Edit condition" />
+        <ActionButton icon={<MessageIcon width={14} height={14} />} onClick={() => actions.createMessage(baseId, "inside", branchIdx)} label="Create message" />
+        <ActionButton icon={<ElseIcon width={14} height={14} />} onClick={() => actions.createElse(baseId, branchIdx)} label="Create else" />
+        {!isAlt ? (
+          <ActionButton icon={<DeleteIcon width={14} height={14} />} onClick={() => actions.deleteElse(baseId, branchIdx)} label="Delete else" danger />
+        ) : (
+          <ActionButton icon={<DeleteIcon width={14} height={14} />} onClick={() => actions.deleteNode(baseId)} label="Delete alt" danger />
+        )}
+      </div>
     </MenuPopover>
   );
 }
