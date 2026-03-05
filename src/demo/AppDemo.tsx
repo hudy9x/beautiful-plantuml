@@ -10,7 +10,7 @@ import {
   DividerMenuBar,
   NoteMenuBar,
   MessageMenuBar,
-} from "../browser-based-plantuml-generator";
+} from "../beautiful-plantuml";
 
 // ── Samples ───────────────────────────────────────────────────────────────────
 
