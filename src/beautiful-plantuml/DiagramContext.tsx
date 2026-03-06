@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
 import type { DiagramAST, Participant, StatementNode } from "./types";
 import { astToString } from "./parser/serializer";
 import { genId } from "./utils";

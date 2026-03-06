@@ -1,4 +1,3 @@
-import React from "react";
 import { createPortal } from "react-dom";
 import { useDiagram } from "../DiagramContext";
 import { PARTICIPANT_KINDS } from "../types";

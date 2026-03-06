@@ -1,4 +1,3 @@
-import React from 'react';
 
 export function QueueIcon(props: React.SVGProps<SVGSVGElement>) {
   return (

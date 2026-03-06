@@ -1,4 +1,3 @@
-import React from 'react';
 
 export function ParticipantIcon(props: React.SVGProps<SVGSVGElement>) {
   return (

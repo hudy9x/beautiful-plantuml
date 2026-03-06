@@ -1,4 +1,3 @@
-import React from 'react';
 
 export function DeleteIcon(props: React.SVGProps<SVGSVGElement>) {
   return (

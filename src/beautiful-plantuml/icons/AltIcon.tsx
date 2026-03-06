@@ -1,4 +1,3 @@
-import React from 'react';
 
 export function AltIcon(props: React.SVGProps<SVGSVGElement>) {
   return (

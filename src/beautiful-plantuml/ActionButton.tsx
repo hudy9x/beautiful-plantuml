@@ -1,4 +1,3 @@
-import React from "react";
 import { C } from "./theme";
 
 export function ActionButton({ onClick, label, danger, icon }: { onClick: () => void, label: string, danger?: boolean, icon?: React.ReactNode }) {

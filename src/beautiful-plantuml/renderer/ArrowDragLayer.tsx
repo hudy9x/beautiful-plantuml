@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDiagram } from "../DiagramContext";
 import { SELF_LOOP_H, SELF_LOOP_W } from "../layout/constants";
 

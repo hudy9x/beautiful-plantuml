@@ -1,4 +1,3 @@
-import React from 'react';
 
 export function ActorIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
