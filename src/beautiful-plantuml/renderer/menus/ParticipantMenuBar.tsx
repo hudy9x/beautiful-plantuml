@@ -26,8 +26,8 @@ export function ParticipantMenuBar() {
     <MenuPopover position={clickPosition} title="Participant Actions" subtitle={<span>{declStr}</span>}>
       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "center" }}>
         <ActionButton icon={<ParticipantIcon width={14} height={14} />} onClick={() => actions.createParticipant(alias)} label="Create participant" />
-        <ActionButton icon={<EditIcon width={14} height={14} />} onClick={() => {
-          const str = window.prompt("Edit participant:", declStr);
+        <ActionButton icon={<EditIcon width={14} height={14} />} onClick={async () => {
+          const str = await actions.prompt("Edit participant:", declStr);
           if (str !== null) actions.editParticipant(alias, str);
         }} label="Edit participant" />
         <ActionButton icon={<MoveLeftIcon width={14} height={14} />} onClick={() => actions.moveParticipant(alias, "left")} label="Move Left" />

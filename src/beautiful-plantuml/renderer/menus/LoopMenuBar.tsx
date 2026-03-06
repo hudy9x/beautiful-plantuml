@@ -31,8 +31,8 @@ export function LoopMenuBar() {
   return (
     <MenuPopover position={clickPosition} title="Loop Actions" subtitle={<span>{node.label || "(no label)"}</span>}>
       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "center" }}>
-        <ActionButton icon={<EditIcon width={14} height={14} />} onClick={() => {
-          const newLbl = window.prompt("Edit loop label:", node.label);
+        <ActionButton icon={<EditIcon width={14} height={14} />} onClick={async () => {
+          const newLbl = await actions.prompt("Edit loop label:", node.label);
           if (newLbl !== null) actions.editNodeLabel(selectedNodeId, newLbl);
         }} label="Edit header" />
         <ActionButton icon={<MessageIcon width={14} height={14} />} onClick={() => actions.createMessage(selectedNodeId, "inside")} label="Create message" />

@@ -1,4 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
+import { PromptDialog, type PromptDialogProps } from "./PromptDialog";
 import type { DiagramAST, Participant, StatementNode } from "./types";
 import { astToString } from "./parser/serializer";
 import { genId } from "./utils";
@@ -29,6 +30,7 @@ export interface DiagramContextType {
     insertParticipantAt: (index: number, kind?: string) => void;
     insertStatementAt: (afterId: string | null, kind: string) => void;
     rerouteMessageEndpoint: (id: string, end: "from" | "to", newAlias: string) => void;
+    prompt: (title: string, defaultValue: string) => Promise<string | null>;
   };
 }
 
@@ -46,12 +48,19 @@ export function useDiagramActions() {
 
 type ThemeName = keyof typeof THEMES;
 
-export function DiagramProvider({ children, code, updateCode, onChange, theme = "zinc-dark" }: { children: React.ReactNode, code: string, updateCode?: (c: string, ast: DiagramAST | null) => void, onChange?: (c: string, ast: DiagramAST | null) => void, theme?: ThemeName | Record<string, string> }) {
+export function DiagramProvider({ children, code, updateCode, onChange, theme = "zinc-dark", renderPromptDialog }: { children: React.ReactNode, code: string, updateCode?: (c: string, ast: DiagramAST | null) => void, onChange?: (c: string, ast: DiagramAST | null) => void, theme?: ThemeName | Record<string, string>, renderPromptDialog?: (props: PromptDialogProps) => React.ReactNode }) {
   const _onChange = onChange ?? updateCode ?? (() => { });
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [clickPosition, setClickPosition] = useState<{ x: number, y: number } | null>(null);
   const [diagramPadding, setDiagramPadding] = useState({ top: 40, right: 40, bottom: 40, left: 40 });
   const [ast, setAst] = useState<DiagramAST | null>(() => { try { return parse(code); } catch { return null; } });
+
+  const [promptState, setPromptState] = useState<{
+    isOpen: boolean;
+    title: string;
+    defaultValue: string;
+    resolve: (value: string | null) => void;
+  } | null>(null);
 
   // Re-parse whenever code changes
   useEffect(() => {
@@ -380,12 +389,47 @@ export function DiagramProvider({ children, code, updateCode, onChange, theme = 
       }
       patch(newStmts);
       _updateCode(astToString({ ...ast, statements: newStmts }));
+    },
+
+    prompt: (title: string, defaultValue: string) => {
+      return new Promise<string | null>((resolve) => {
+        setPromptState({ isOpen: true, title, defaultValue, resolve });
+      });
     }
   };
 
   return (
     <DiagramContext.Provider value={{ code, updateCode: _updateCode, ast, selectedNodeId, setSelectedNodeId, clickPosition, setClickPosition, diagramPadding, setDiagramPadding, actions }}>
       {children}
+      {promptState && promptState.isOpen && (
+        renderPromptDialog ? renderPromptDialog({
+          isOpen: promptState.isOpen,
+          title: promptState.title,
+          defaultValue: promptState.defaultValue,
+          onSave: (val: string) => {
+            promptState.resolve(val);
+            setPromptState(null);
+          },
+          onCancel: () => {
+            promptState.resolve(null);
+            setPromptState(null);
+          }
+        }) : (
+          <PromptDialog
+            isOpen={promptState.isOpen}
+            title={promptState.title}
+            defaultValue={promptState.defaultValue}
+            onSave={(val: string) => {
+              promptState.resolve(val);
+              setPromptState(null);
+            }}
+            onCancel={() => {
+              promptState.resolve(null);
+              setPromptState(null);
+            }}
+          />
+        )
+      )}
     </DiagramContext.Provider>
   );
 }

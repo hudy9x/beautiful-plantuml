@@ -37,8 +37,8 @@ export function MessageMenuBar() {
     >
       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "center" }}>
         <ActionButton icon={<MessageIcon width={14} height={14} />} onClick={() => actions.createMessage(baseId, "after")} label="Create Message" />
-        <ActionButton icon={<EditIcon width={14} height={14} />} onClick={() => {
-          const newStr = window.prompt("Edit message:", currentStr);
+        <ActionButton icon={<EditIcon width={14} height={14} />} onClick={async () => {
+          const newStr = await actions.prompt("Edit message:", currentStr);
           if (newStr !== null) actions.editNodeLabel(baseId, newStr);
         }} label="Edit Message" />
         <ActionButton icon={<DeleteIcon width={14} height={14} />} onClick={() => actions.deleteNode(baseId)} label="Delete Message" danger />

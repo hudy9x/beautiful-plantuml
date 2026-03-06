@@ -44,3 +44,5 @@ export type { DiagramAST, StatementNode, Participant, MessageNode, NoteNode } fr
 // ── Internal building blocks (for advanced customisation) ─────────────────────
 export { ParticipantShape } from "./renderer/shapes";
 export { ActionButton } from "./ActionButton";
+export { PromptDialog } from "./PromptDialog";
+export type { PromptDialogProps } from "./PromptDialog";

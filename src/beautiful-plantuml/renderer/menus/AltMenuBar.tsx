@@ -49,8 +49,8 @@ export function AltMenuBar() {
       }
     >
       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "center" }}>
-        <ActionButton icon={<EditIcon width={14} height={14} />} onClick={() => {
-          const newCond = window.prompt(`Edit ${label.toLowerCase()} condition:`, condition);
+        <ActionButton icon={<EditIcon width={14} height={14} />} onClick={async () => {
+          const newCond = await actions.prompt(`Edit ${label.toLowerCase()} condition:`, condition);
           if (newCond !== null) actions.editNodeLabel(baseId, newCond, branchIdx);
         }} label="Edit condition" />
         <ActionButton icon={<MessageIcon width={14} height={14} />} onClick={() => actions.createMessage(baseId, "inside", branchIdx)} label="Create message" />

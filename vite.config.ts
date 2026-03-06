@@ -8,8 +8,9 @@ export default defineConfig({
   plugins: [
     react(),
     dts({
-      include: ['src/beautiful-plantuml'],
+      include: ['src/beautiful-plantuml/**/*.ts', 'src/beautiful-plantuml/**/*.tsx'],
       insertTypesEntry: true,
+      tsconfigPath: './tsconfig.app.json',
     })
   ],
   build: {
