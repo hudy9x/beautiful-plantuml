@@ -1,5 +1,7 @@
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { C } from "../../theme";
+import { useDiagram } from "../../DiagramContext";
 
 interface MenuPopoverProps {
   position: { x: number; y: number };
@@ -9,13 +11,40 @@ interface MenuPopoverProps {
 }
 
 export function MenuPopover({ position, title, subtitle, children }: MenuPopoverProps) {
+  const { setSelectedNodeId, setClickPosition } = useDiagram();
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handlePointerDown = (e: PointerEvent) => {
+      // If the click target is inside the popover, do nothing
+      if (popoverRef.current?.contains(e.target as Node)) return;
+      setSelectedNodeId(null);
+      setClickPosition(null);
+    };
+
+    // Defer so the opening pointer-down that triggered this mount doesn't immediately close it
+    const timer = setTimeout(() => {
+      document.addEventListener("pointerdown", handlePointerDown);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [setSelectedNodeId, setClickPosition]);
+
   return createPortal(
-    <div style={{
-      position: "fixed", left: position.x, top: position.y - 8,
-      background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
-      padding: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.5)", zIndex: 100,
-      width: 200, transform: "translate(-50%, -100%)",
-    }}>
+    <div
+      ref={popoverRef}
+      // Stop pointer events from bubbling past the popover so document listeners don't interfere
+      onPointerDown={e => e.stopPropagation()}
+      style={{
+        position: "fixed", left: position.x, top: position.y - 8,
+        background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
+        padding: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.5)", zIndex: 100,
+        width: 200, transform: "translate(-50%, -100%)",
+      }}
+    >
       <div style={{ fontSize: 12, fontWeight: "bold", marginBottom: 8, color: C.text, textAlign: "center" }}>
         {title}
       </div>

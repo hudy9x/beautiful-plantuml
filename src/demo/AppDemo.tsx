@@ -154,21 +154,26 @@ export default function AppDemo() {
       overflow: "hidden",
       background: "#0d1117",
       fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+      position: "fixed",
+      top: 0,
+      left: 0,
     }}>
 
       {/* ── Left Panel: Editor ──────────────────────────────────────────── */}
       <div style={{
         width: 350,
         minWidth: 350,
-        height: "100vh",
+        height: "100%",
         display: "flex",
         flexDirection: "column",
         borderRight: "1px solid #21262d",
         background: "#161b22",
         position: "relative",
+        overflow: "hidden",
       }}>
         {/* Header */}
         <div style={{
+          flexShrink: 0,
           padding: "12px 16px",
           borderBottom: "1px solid #21262d",
           background: "#0d1117",
@@ -194,36 +199,45 @@ export default function AppDemo() {
           }}>LIVE</span>
         </div>
 
-        {/* Textarea */}
-        <textarea
-          value={code}
-          onChange={handleTextareaChange}
-          spellCheck={false}
-          style={{
-            flex: 1,
-            resize: "none",
-            background: "#0d1117",
-            color: "#cdd9e5",
-            border: "none",
-            outline: "none",
-            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-            fontSize: 12,
-            lineHeight: 1.8,
-            padding: "14px 16px",
-            overflowY: "auto",
-            // Reserve space for error panel
-            paddingBottom: errors.length > 0 ? 210 : 14,
-          }}
-        />
+        {/* Textarea wrapper — flex:1 so it fills remaining height; overflow hidden clips to leave room for error panel */}
+        <div style={{
+          flex: 1,
+          position: "relative",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}>
+          <textarea
+            value={code}
+            onChange={handleTextareaChange}
+            spellCheck={false}
+            style={{
+              flex: 1,
+              resize: "none",
+              background: "#0d1117",
+              color: "#cdd9e5",
+              border: "none",
+              outline: "none",
+              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+              fontSize: 12,
+              lineHeight: 1.8,
+              padding: "14px 16px",
+              overflowY: "auto",
+              boxSizing: "border-box",
+              // Reserve bottom space for error panel
+              paddingBottom: errors.length > 0 ? 210 : 14,
+            }}
+          />
 
-        {/* Error panel — fixed at bottom of left panel */}
-        <ErrorPanel errors={errors} />
+          {/* Error panel — absolute inside this wrapper, sticks to its bottom */}
+          <ErrorPanel errors={errors} />
+        </div>
       </div>
 
       {/* ── Right Panel: Diagram Playground ────────────────────────────── */}
       <div style={{
         flex: 1,
-        height: "100vh",
+        height: "100%",
         position: "relative",
         background: "#0d1117",
         overflow: "hidden",
