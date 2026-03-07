@@ -1,7 +1,6 @@
 {
-  "buildCommand": "npm run build:demo",
+  "buildCommand": "pnpm run build:demo",
   "outputDirectory": "demo-dist",
-  "installCommand": "npm install",
   "rewrites": [
     {
       "source": "/(.*)",
