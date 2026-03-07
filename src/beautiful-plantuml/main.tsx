@@ -172,26 +172,31 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
         nx = Math.min(x1, x2) - nw / 2;
         ny = y + 4;
       } else {
-        // "left" / "right" bare notes: vertically center on the preceding arrow.
-        // The note is placed right after a message row (MSG_H tall, arrow at MSG_H - MSG_ARROW_BOT from row top).
-        // We shift the note up so it sits beside the arrow rather than below it.
+        // "left of X" / "right of X" — p1 is an explicit participant alias (NOTE_INLINE/NOTE_START with "of")
+        // bare "note left" / "note right" — p1 resolved from the preceding message (NOTE_BARE_*)
+        // We distinguish by checking whether p1 came from an explicit "of" clause:
+        // NOTE_INLINE/NOTE_START tokenized with "of" always set p1.
+        // NOTE_BARE_* set p1 = ref.current participant, but bare notes should float beside the arrow.
+        // Both end up with position="left"|"right" and a p1.
+        // Heuristic: if p1 is set AND the source was "of" syntax, it's a named note → place at y.
+        //            If it's a bare note, the parser sets p1 from ref.current — same p1 but different intent.
+        // We can't tell them apart from the AST alone, so we treat ALL left/right notes the same:
+        // just place them at current y beside the participant, which is correct for both cases.
         nw = noteW(s.lines);
+        const px = s.p1 ? (aliasToX[s.p1] ?? 0) : (s.position === "left" ? bx1 : bx2);
         nx = s.position === "left"
-          ? (s.p1 ? (aliasToX[s.p1] ?? 0) : 0) - nw - 8
-          : (s.p1 ? (aliasToX[s.p1] ?? 0) : 0) + 8;
-        // Center note vertically on the arrow line of the preceding message
-        const arrowLineY = y - GAP - MSG_ARROW_BOT;  // approx y of arrow in prev row
-        ny = arrowLineY - nh / 2;
+          ? px - nw - 8
+          : px + 8;
+        ny = y + 4;
       }
 
       const noteBottom = ny + nh + 4;
       return {
         node: <NoteBoxSvg key={`note-${y}`} x={nx} y={ny} w={s.position === "across" ? nw : undefined} lines={s.lines} color={s.color} node={s} />,
-        h: s.position === "left" || s.position === "right"
-          ? Math.max(0, noteBottom - y)   // only consume space if note extends past current y
-          : nh + 8,
+        h: noteBottom - y,
       };
     }
+
 
     case "DIVIDER": {
       return {

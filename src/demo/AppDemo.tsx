@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { ZoomPanContainer } from "../components/ZoomPanContainer";
 import {
   DiagramProvider,
   SequenceDiagram,
@@ -10,235 +11,247 @@ import {
   DividerMenuBar,
   NoteMenuBar,
   MessageMenuBar,
+  type DiagramAST,
 } from "../beautiful-plantuml";
-import { ThemeSwitcher, type ThemeBase, type ThemeMode } from "../components/ThemeSwitcher";
 
-// ── Samples ───────────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-const SAMPLES: {
-  title: string;
-  description: string;
-  plantUml: string;
-  usageCode: string;
-  menus: boolean;
-  actions: boolean;
-  enableHoverLayer?: boolean;
-  enableDragLayer?: boolean;
-}[] = [
-    {
-      title: "1. Minimal — Read Only",
-      description: "Just render. No hover layer, no drag layer.",
-      plantUml: `@startuml
-Alice -> Bob: Hello
-Bob -> Alice: Hi!
-@enduml`,
-      usageCode: `<DiagramProvider code={code} onChange={setCode}>
-  <SequenceDiagram
-    enableHoverLayer={false}
-    enableDragLayer={false}
-  />
-</DiagramProvider>`,
-      menus: false,
-      actions: false,
-      enableHoverLayer: false,
-      enableDragLayer: false,
-    },
-    {
-      title: "2. With Context Menus",
-      description: "Click any element to edit via context menus.",
-      plantUml: `@startuml
-participant Alice
-participant Bob
+const STORAGE_KEY = "plantuml-playground-code";
 
-Alice -> Bob: Request
-Bob -> Alice: Response
-@enduml`,
-      usageCode: `<DiagramProvider code={code} onChange={setCode}>
-  <SequenceDiagram />
+const DEFAULT_CODE = `@startuml
+participant "Frontend" as Alice
+participant "Backend" as Bob
+participant "Database" as db
 
-  <ParticipantMenuBar />
-  <MessageMenuBar />
-  <AltMenuBar />
-  <GroupMenuBar />
-  <LoopMenuBar />
-  <DividerMenuBar />
-  <NoteMenuBar />
-</DiagramProvider>`,
-      menus: true,
-      actions: false,
-    },
-    {
-      title: "3. Full Featured",
-      description: "All menus + crosshair insert toolbar + drag-to-reroute arrows.",
-      plantUml: `@startuml
-participant Alice
-participant Bob
-participant Carol
-
-Alice -> Bob: Hello
-Bob -> Carol: Forward
-group Processing
-  Carol -> Carol: Think
-  alt success
-    Carol -> Bob: Done
-  else error
-    Carol -> Bob: Failed
+Alice -> Bob : POST /api/login
+Bob -> db : SELECT user WHERE email = ?
+db --> Bob : user record
+alt credentials valid
+  Bob --> Alice : 200 OK { token }
+  note right of Bob : Sign JWT here
+  Alice -> Bob : GET /api/profile
+  note left of Alice
+    Authorization: Bearer <token>
+  end note
+  Bob --> Alice : 200 OK { profile }
+else invalid password
+  Bob --> Alice : 401 Unauthorized
+  note across : Log the failed attempt
+else account locked
+  group Lockout handler
+    Bob -> db : UPDATE user SET locked = true
+    loop 3 times
+      Bob -> Alice : Retry-After header
+    end
   end
+  Bob --> Alice : 403 Forbidden
 end
-note right of Bob: Result ready
-Bob -> Alice: Result
-@enduml`,
-      usageCode: `<DiagramProvider code={code} onChange={setCode}>
-  <SequenceDiagram />
+@enduml`;
 
-  <ParticipantMenuBar />
-  <MessageMenuBar />
-  <AltMenuBar />
-  <GroupMenuBar />
-  <LoopMenuBar />
-  <DividerMenuBar />
-  <NoteMenuBar />
+// ── ErrorPanel ────────────────────────────────────────────────────────────────
 
-  {/* All-in-one toolbar: insert + drag */}
-  <DiagramActions />
-</DiagramProvider>`,
-      menus: true,
-      actions: true,
-    },
-  ];
-
-// ── DemoCard ──────────────────────────────────────────────────────────────────
-
-function DemoCard({ title, description, plantUml, usageCode, menus, actions, enableHoverLayer = true, enableDragLayer = true, theme, mode }: {
-  title: string;
-  description: string;
-  plantUml: string;
-  usageCode: string;
-  menus: boolean;
-  actions: boolean;
-  enableHoverLayer?: boolean;
-  enableDragLayer?: boolean;
-  theme?: ThemeBase;
-  mode?: ThemeMode;
-}) {
-  const [code] = useState(plantUml);
-  const fullTheme = theme && mode ? `${theme}-${mode}` as any : 'zinc-dark';
+function ErrorPanel({ errors }: { errors: { line: number; text: string }[] }) {
+  if (errors.length === 0) return null;
 
   return (
     <div style={{
-      display: "grid",
-      gridTemplateColumns: "380px 1fr",
-      border: "1px solid #21262d",
-      borderRadius: 10,
-      overflow: "hidden",
-      background: "#161b22",
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      maxHeight: 200,
+      overflowY: "auto",
+      background: "#160a0a",
+      borderTop: "1px solid #3d1a1a",
+      zIndex: 10,
     }}>
-      {/* Left: usage code */}
       <div style={{
-        borderRight: "1px solid #21262d",
+        padding: "6px 12px",
+        fontSize: 10,
+        fontWeight: 700,
+        color: "#f85149",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        borderBottom: "1px solid #3d1a1a",
+        background: "#1c0d0d",
         display: "flex",
-        flexDirection: "column",
+        alignItems: "center",
+        gap: 6,
       }}>
-        <div style={{
-          padding: "10px 16px",
-          borderBottom: "1px solid #21262d",
-          background: "#0d1117",
-        }}>
-          <div style={{ fontSize: 12, fontWeight: "bold", color: "#79c0ff" }}>{title}</div>
-          <div style={{ fontSize: 11, color: "#768390", marginTop: 3 }}>{description}</div>
-        </div>
-        <pre style={{
-          margin: 0,
-          flex: 1,
-          background: "#0d1117",
-          color: "#cdd9e5",
-          fontFamily: "'JetBrains Mono', monospace",
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        {errors.length} Parse Error{errors.length > 1 ? "s" : ""}
+      </div>
+      {errors.map((e, i) => (
+        <div key={i} style={{
+          padding: "5px 12px",
           fontSize: 11,
-          lineHeight: 1.75,
-          padding: "14px 16px",
-          overflowX: "auto",
-          whiteSpace: "pre",
-          textAlign: "left",
+          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+          color: "#ffa198",
+          borderBottom: "1px solid #2d1111",
+          display: "flex",
+          gap: 10,
+          alignItems: "baseline",
         }}>
-          {usageCode}
-        </pre>
-      </div>
-
-      {/* Right: live diagram */}
-      <div style={{ padding: 20, overflowX: "auto", position: "relative", background: "var(--c-bg)" }}>
-        <DiagramProvider code={code} onChange={() => { }} theme={fullTheme}>
-          <SequenceDiagram
-            enableHoverLayer={enableHoverLayer}
-            enableDragLayer={enableDragLayer}
-          />
-          {menus && (
-            <>
-              <ParticipantMenuBar />
-              <MessageMenuBar />
-              <AltMenuBar />
-              <GroupMenuBar />
-              <LoopMenuBar />
-              <DividerMenuBar />
-              <NoteMenuBar />
-            </>
-          )}
-          {actions && <DiagramActions />}
-        </DiagramProvider>
-      </div>
+          <span style={{ color: "#f85149", minWidth: 32, fontWeight: 600 }}>
+            L{e.line}
+          </span>
+          <span style={{ color: "#ffa198", opacity: 0.85 }}>{e.text}</span>
+        </div>
+      ))}
     </div>
   );
 }
 
-// ── AppDemo ───────────────────────────────────────────────────────────────────
+// ── Playground ────────────────────────────────────────────────────────────────
 
 export default function AppDemo() {
-  const [theme, setTheme] = useState<ThemeBase>('zinc');
-  const [mode, setMode] = useState<ThemeMode>('dark');
+  const [code, setCode] = useState<string>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY) || DEFAULT_CODE;
+    } catch {
+      return DEFAULT_CODE;
+    }
+  });
 
-  const bgColors: Record<ThemeBase, Record<ThemeMode, string>> = {
-    default: { light: "#ffffff", dark: "#0d1117" },
-    zinc: { light: "#ffffff", dark: "#09090b" },
-    nord: { light: "#eceff4", dark: "#2e3440" },
-    catppuccin: { light: "#eff1f5", dark: "#1e1e2e" },
-    tokyo: { light: "#d5d6db", dark: "#1a1b26" },
-    dracula: { light: "#f8f8f2", dark: "#282a36" },
-    github: { light: "#ffffff", dark: "#0d1117" },
-    solarized: { light: "#fdf6e3", dark: "#002b36" },
-  };
-  const textColors: Record<ThemeBase, Record<ThemeMode, string>> = {
-    default: { light: "#24292f", dark: "#cdd9e5" },
-    zinc: { light: "#09090b", dark: "#fafafa" },
-    nord: { light: "#2e3440", dark: "#eceff4" },
-    catppuccin: { light: "#4c4f69", dark: "#cdd6f4" },
-    tokyo: { light: "#343b58", dark: "#c0caf5" },
-    dracula: { light: "#282a36", dark: "#f8f8f2" },
-    github: { light: "#24292f", dark: "#cdd9e5" },
-    solarized: { light: "#657b83", dark: "#839496" },
-  };
+  const [ast, setAst] = useState<DiagramAST | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced localStorage save
+  const handleChange = useCallback((newCode: string, newAst: DiagramAST | null) => {
+    setCode(newCode);
+    setAst(newAst);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY, newCode); } catch { /* ignore */ }
+    }, 500);
+  }, []);
+
+  // Sync ast on direct textarea edits (before DiagramProvider re-parses)
+  const handleTextareaChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newCode = e.target.value;
+    setCode(newCode);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY, newCode); } catch { /* ignore */ }
+    }, 500);
+  }, []);
+
+  useEffect(() => {
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, []);
+
+  const errors = ast?.errors ?? [];
 
   return (
     <div style={{
-      minHeight: "100vh",
-      background: bgColors[theme][mode],
-      color: textColors[theme][mode],
-      fontFamily: "'JetBrains Mono', monospace",
-      padding: "28px 32px",
+      display: "flex",
+      width: "100vw",
+      height: "100vh",
+      overflow: "hidden",
+      background: "#0d1117",
+      fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
     }}>
-      <ThemeSwitcher theme={theme} mode={mode} onChangeTheme={setTheme} onChangeMode={setMode} />
 
-      <div style={{ marginBottom: 28, marginTop: 40 }}>
-        <h1 style={{ margin: 0, fontSize: 18, fontWeight: "bold", color: "#e6edf3" }}>
-          PlantUML Sequence Diagram
-        </h1>
-        <p style={{ margin: "6px 0 0", fontSize: 12, color: "#768390" }}>
-          Usage examples — from minimal to full-featured.
-        </p>
+      {/* ── Left Panel: Editor ──────────────────────────────────────────── */}
+      <div style={{
+        width: 350,
+        minWidth: 350,
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        borderRight: "1px solid #21262d",
+        background: "#161b22",
+        position: "relative",
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: "12px 16px",
+          borderBottom: "1px solid #21262d",
+          background: "#0d1117",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" strokeWidth="2">
+            <polyline points="16 18 22 12 16 6" />
+            <polyline points="8 6 2 12 8 18" />
+          </svg>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#e6edf3" }}>PlantUML Editor</span>
+          <span style={{
+            marginLeft: "auto",
+            fontSize: 9,
+            color: "#3fb950",
+            background: "#0d2818",
+            border: "1px solid #1e4620",
+            borderRadius: 4,
+            padding: "2px 6px",
+            fontWeight: 600,
+            letterSpacing: "0.06em",
+          }}>LIVE</span>
+        </div>
+
+        {/* Textarea */}
+        <textarea
+          value={code}
+          onChange={handleTextareaChange}
+          spellCheck={false}
+          style={{
+            flex: 1,
+            resize: "none",
+            background: "#0d1117",
+            color: "#cdd9e5",
+            border: "none",
+            outline: "none",
+            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+            fontSize: 12,
+            lineHeight: 1.8,
+            padding: "14px 16px",
+            overflowY: "auto",
+            // Reserve space for error panel
+            paddingBottom: errors.length > 0 ? 210 : 14,
+          }}
+        />
+
+        {/* Error panel — fixed at bottom of left panel */}
+        <ErrorPanel errors={errors} />
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        {SAMPLES.map(s => (
-          <DemoCard key={s.title} {...s} theme={theme} mode={mode} />
-        ))}
+      {/* ── Right Panel: Diagram Playground ────────────────────────────── */}
+      <div style={{
+        flex: 1,
+        height: "100vh",
+        position: "relative",
+        background: "#0d1117",
+        overflow: "hidden",
+      }}>
+        <DiagramProvider
+          code={code}
+          onChange={handleChange}
+          theme={"zinc-dark" as any}
+        >
+          <ZoomPanContainer>
+            <SequenceDiagram
+              enableHoverLayer={true}
+              enableDragLayer={true}
+            />
+          </ZoomPanContainer>
+
+          {/* Context menus */}
+          <ParticipantMenuBar />
+          <MessageMenuBar />
+          <AltMenuBar />
+          <GroupMenuBar />
+          <LoopMenuBar />
+          <DividerMenuBar />
+          <NoteMenuBar />
+
+          {/* Insert toolbar + drag */}
+          <DiagramActions />
+        </DiagramProvider>
       </div>
     </div>
   );
