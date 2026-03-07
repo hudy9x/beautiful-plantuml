@@ -235,10 +235,12 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
       return {
         node: (
           <g key={`alt-${y}`} className="alt-block">
+            {/* Background fill — bottommost */}
             <rect x={bx1} y={y} width={bw} height={totalH} fill={C.altBg} stroke="none" rx={3} />
-            {elems}
+            {/* Border stroke — painted before inner content so notes render on top */}
             <rect x={bx1} y={y} width={bw} height={totalH} fill="none"
               stroke={isSelected ? "#fff" : C.altBorder} strokeWidth={isSelected ? 2 : 1.5} rx={3} className="alt-border" />
+            {elems}
           </g>
         ),
         h: totalH,
@@ -253,8 +255,10 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
       return {
         node: (
           <g key={`grp-${y}`} className="group-block">
-            <rect x={bx1} y={y} width={bw} height={totalH}
-              fill={C.groupBg} stroke={isSelected ? "#fff" : C.groupBorder} strokeWidth={isSelected ? 2 : 1.5} rx={3} />
+            {/* Fill then stroke before inner nodes so notes paint on top of border */}
+            <rect x={bx1} y={y} width={bw} height={totalH} fill={C.groupBg} stroke="none" rx={3} />
+            <rect x={bx1} y={y} width={bw} height={totalH} fill="none"
+              stroke={isSelected ? "#fff" : C.groupBorder} strokeWidth={isSelected ? 2 : 1.5} rx={3} />
             <BlockHeader x={bx1} y={y} w={bw} keyword="group" condition={s.label}
               stroke={C.groupBorder} headerFill="rgba(99,102,241,0.12)" labelColor={C.groupLabel} nodeId={s.id} />
             {inner.nodes}
@@ -273,8 +277,10 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
       return {
         node: (
           <g key={`loop-${y}`} className="loop-block">
-            <rect x={bx1} y={y} width={bw} height={totalH}
-              fill={C.loopBg} stroke={isSelected ? "#fff" : C.loopBorder} strokeWidth={isSelected ? 2 : 1.5} rx={3} />
+            {/* Fill then stroke before inner nodes so notes paint on top of border */}
+            <rect x={bx1} y={y} width={bw} height={totalH} fill={C.loopBg} stroke="none" rx={3} />
+            <rect x={bx1} y={y} width={bw} height={totalH} fill="none"
+              stroke={isSelected ? "#fff" : C.loopBorder} strokeWidth={isSelected ? 2 : 1.5} rx={3} />
             <BlockHeader x={bx1} y={y} w={bw} keyword="loop" condition={s.label}
               stroke={C.loopBorder} headerFill="rgba(52,211,153,0.08)" labelColor={C.loopLabel} nodeId={s.id} />
             <path d={`M${ix} ${iy - 5} A5 5 0 1 1 ${ix - 5} ${iy}`}
