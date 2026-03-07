@@ -26,7 +26,7 @@ function shapeParticipant(name: string, s: string, bg: string, sIconChar: string
         </text>
       </g>
     )}
-    <text x={0} y={sTitle ? topY + 32 : 6} textAnchor="middle" fontSize={11} fontWeight="bold"
+    <text x={0} y={sTitle ? topY + 32 : 4} textAnchor="middle" fontSize={11} fontWeight="bold"
       fill={s} className="participant-label">{name}</text>
   </>;
 }
