@@ -110,7 +110,7 @@ export function DepdokBanner() {
         onMouseEnter={(e) => e.currentTarget.style.opacity = "0.85"}
         onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
       >
-        Join now
+        Get it now
       </a>
     </div>
   );
