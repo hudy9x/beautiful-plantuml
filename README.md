@@ -5,8 +5,7 @@
 </p>
 
 <p align="center">
-  <img alt="Demo Showcase" src="./public/demo-screenshot.png" width="800" />
-  <!-- Update with your actual screenshot path -->
+  <img alt="Demo Showcase" src="./capture.png" width="800" />
 </p>
 
 ## ✨ Features

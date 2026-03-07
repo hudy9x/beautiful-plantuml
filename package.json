@@ -1,6 +1,6 @@
 {
   "name": "beautiful-plantuml",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "A beautiful, interactive, React-based PlantUML sequence diagram renderer.",
   "homepage": "https://beautiful-plantuml.vercel.app/",
   "author": "hudy9x",
