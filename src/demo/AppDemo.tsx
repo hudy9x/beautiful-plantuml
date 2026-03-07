@@ -14,6 +14,8 @@ import {
   type DiagramAST,
 } from "../beautiful-plantuml";
 import { THEMES } from "../beautiful-plantuml/theme";
+import { DepdokBanner } from "../components/DepdokBanner";
+import "./demo.css";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -497,30 +499,32 @@ export default function AppDemo() {
           }}>LIVE</span>
         </div>
 
-        {/* Textarea wrapper */}
-        <div style={{ flex: 1, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          <textarea
-            value={code}
-            onChange={handleTextareaChange}
-            spellCheck={false}
-            style={{
-              flex: 1,
-              resize: "none",
-              background: "#0d1117",
-              color: "#cdd9e5",
-              border: "none",
-              outline: "none",
-              fontFamily: "inherit",
-              fontSize: 12,
-              lineHeight: 1.8,
-              padding: "14px 16px",
-              overflowY: "auto",
-              boxSizing: "border-box",
-              paddingBottom: errors.length > 0 ? 210 : 14,
-            }}
-          />
-          <ErrorPanel errors={errors} />
-        </div>
+        {/* Textarea */}
+        <textarea
+          value={code}
+          onChange={handleTextareaChange}
+          spellCheck={false}
+          style={{
+            flex: 1,
+            resize: "none",
+            background: "#0d1117",
+            color: "#cdd9e5",
+            border: "none",
+            outline: "none",
+            fontFamily: "inherit",
+            fontSize: 12,
+            lineHeight: 1.8,
+            padding: "14px 16px",
+            overflowY: "auto",
+            boxSizing: "border-box",
+            // Add substantial bottom padding so code can scroll up past the floating banner + error panel
+            paddingBottom: errors.length > 0 ? 400 : 260,
+          }}
+        />
+        <ErrorPanel errors={errors} />
+
+        {/* Advertisement Banner */}
+        <DepdokBanner />
       </div>
 
       {/* ── Right Panel: Toolbar + Diagram ─────────────────────────────── */}
