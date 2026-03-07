@@ -13,10 +13,21 @@ import {
   MessageMenuBar,
   type DiagramAST,
 } from "../beautiful-plantuml";
+import { THEMES } from "../beautiful-plantuml/theme";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "plantuml-playground-code";
+const THEME_KEY = "plantuml-playground-theme";
+
+type ThemeName = keyof typeof THEMES;
+
+const THEME_BASES = [
+  "default", "zinc", "nord", "catppuccin",
+  "tokyo", "dracula", "github", "solarized",
+] as const;
+type ThemeBase = typeof THEME_BASES[number];
+type ThemeMode = "light" | "dark";
 
 const DEFAULT_CODE = `@startuml
 participant "Frontend" as Alice
@@ -47,6 +58,280 @@ else account locked
   Bob --> Alice : 403 Forbidden
 end
 @enduml`;
+
+// ── PNG Export ────────────────────────────────────────────────────────────────
+
+async function downloadAsPng(themeName: ThemeName) {
+  const svg = document.querySelector("svg.sequence-diagram") as SVGSVGElement | null;
+  if (!svg) return;
+
+  const PAD = 32;
+  const svgW = svg.viewBox.baseVal.width || svg.clientWidth;
+  const svgH = svg.viewBox.baseVal.height || svg.clientHeight;
+  const bgColor = THEMES[themeName]["--c-bg"] ?? "#ffffff";
+
+  // Inline all CSS variables as concrete values inside a clone
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width", String(svgW + PAD * 2));
+  clone.setAttribute("height", String(svgH + PAD * 2));
+
+  // Replace every var(--c-*) with its resolved value from the current theme
+  const themeVars = THEMES[themeName] as Record<string, string>;
+  const inlineVars = (el: Element) => {
+    const attrs = ["fill", "stroke", "color", "stop-color"];
+    attrs.forEach(attr => {
+      const val = el.getAttribute(attr);
+      if (val?.startsWith("var(--")) {
+        const key = val.slice(4, -1) as keyof typeof themeVars;
+        if (themeVars[key]) el.setAttribute(attr, themeVars[key]);
+      }
+    });
+    // Also handle inline styles
+    const styleAttr = el.getAttribute("style");
+    if (styleAttr) {
+      const replaced = styleAttr.replace(/var\(--c-[^)]+\)/g, match => {
+        const key = match.slice(4, -1) as keyof typeof themeVars;
+        return themeVars[key] ?? match;
+      });
+      el.setAttribute("style", replaced);
+    }
+    Array.from(el.children).forEach(inlineVars);
+  };
+  inlineVars(clone);
+
+  // Shift all content right+down by PAD via a wrapper <g>
+  const wrapper = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  wrapper.setAttribute("transform", `translate(${PAD}, ${PAD})`);
+  while (clone.firstChild) wrapper.appendChild(clone.firstChild);
+
+  // Background rect
+  const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  bg.setAttribute("x", "0"); bg.setAttribute("y", "0");
+  bg.setAttribute("width", String(svgW + PAD * 2));
+  bg.setAttribute("height", String(svgH + PAD * 2));
+  bg.setAttribute("fill", bgColor);
+  clone.appendChild(bg);
+  clone.appendChild(wrapper);
+
+  const svgStr = new XMLSerializer().serializeToString(clone);
+  const blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    const W = svgW + PAD * 2;
+    const H = svgH + PAD * 2;
+    // Scale up to 2× for crispness, but cap total pixels at ~32 MP to stay within browser limits
+    const MAX_PIXELS = 32_000_000;
+    const scale = Math.min(2, Math.sqrt(MAX_PIXELS / (W * H)));
+    canvas.width = Math.floor(W * scale);
+    canvas.height = Math.floor(H * scale);
+    const ctx = canvas.getContext("2d")!;
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    canvas.toBlob(pngBlob => {
+      if (!pngBlob) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(pngBlob);
+      a.download = "diagram.png";
+      a.click();
+    }, "image/png");
+  };
+  img.src = url;
+}
+
+// ── SVG Export ────────────────────────────────────────────────────────────────
+
+function downloadAsSvg(themeName: ThemeName) {
+  const svg = document.querySelector("svg.sequence-diagram") as SVGSVGElement | null;
+  if (!svg) return;
+
+  const PAD = 32;
+  const svgW = svg.viewBox.baseVal.width || svg.clientWidth;
+  const svgH = svg.viewBox.baseVal.height || svg.clientHeight;
+  const bgColor = (THEMES[themeName] as Record<string, string>)["--c-bg"] ?? "#ffffff";
+
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width", String(svgW + PAD * 2));
+  clone.setAttribute("height", String(svgH + PAD * 2));
+
+  // Inline all CSS vars
+  const themeVars = THEMES[themeName] as Record<string, string>;
+  const inlineVars = (el: Element) => {
+    ["fill", "stroke", "color", "stop-color"].forEach(attr => {
+      const val = el.getAttribute(attr);
+      if (val?.startsWith("var(--")) {
+        const key = val.slice(4, -1);
+        if (themeVars[key]) el.setAttribute(attr, themeVars[key]);
+      }
+    });
+    const styleAttr = el.getAttribute("style");
+    if (styleAttr) {
+      el.setAttribute("style", styleAttr.replace(/var\(--c-[^)]+\)/g, m => {
+        const key = m.slice(4, -1); return themeVars[key] ?? m;
+      }));
+    }
+    Array.from(el.children).forEach(inlineVars);
+  };
+  inlineVars(clone);
+
+  // Wrap content in a padded <g>, prepend a background rect
+  const wrapper = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  wrapper.setAttribute("transform", `translate(${PAD}, ${PAD})`);
+  while (clone.firstChild) wrapper.appendChild(clone.firstChild);
+
+  const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  bg.setAttribute("x", "0"); bg.setAttribute("y", "0");
+  bg.setAttribute("width", String(svgW + PAD * 2));
+  bg.setAttribute("height", String(svgH + PAD * 2));
+  bg.setAttribute("fill", bgColor);
+  clone.appendChild(bg);
+  clone.appendChild(wrapper);
+
+  const svgStr = new XMLSerializer().serializeToString(clone);
+  const blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "diagram.svg";
+  a.click();
+}
+
+function ToolbarBtn({
+  onClick, title, children, accent = false,
+}: { onClick: () => void; title: string; children: React.ReactNode; accent?: boolean }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: "flex", alignItems: "center", gap: 6,
+        padding: "5px 10px",
+        border: `1px solid ${accent ? "#1e4620" : "#30363d"}`,
+        borderRadius: 6,
+        background: accent
+          ? (hover ? "#1a4a1f" : "#0d2818")
+          : (hover ? "#1c2128" : "#161b22"),
+        color: accent ? "#3fb950" : "#cdd9e5",
+        cursor: "pointer",
+        fontSize: 11,
+        fontFamily: "inherit",
+        fontWeight: 500,
+        transition: "background 0.12s, border-color 0.12s",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Toolbar({
+  themeBase, mode, onThemeBase, onMode, onDownload, onExportSvg,
+}: {
+  themeBase: ThemeBase;
+  mode: ThemeMode;
+  onThemeBase: (b: ThemeBase) => void;
+  onMode: (m: ThemeMode) => void;
+  onDownload: () => void;
+  onExportSvg: () => void;
+}) {
+  return (
+    <div style={{
+      flexShrink: 0,
+      height: 44,
+      borderBottom: "1px solid #21262d",
+      background: "#0d1117",
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "0 14px",
+      zIndex: 10,
+    }}>
+      {/* Theme base selector */}
+      <select
+        value={themeBase}
+        onChange={e => onThemeBase(e.target.value as ThemeBase)}
+        style={{
+          background: "#161b22",
+          color: "#cdd9e5",
+          border: "1px solid #30363d",
+          borderRadius: 6,
+          padding: "4px 8px",
+          fontSize: 11,
+          fontFamily: "inherit",
+          cursor: "pointer",
+          outline: "none",
+        }}
+      >
+        {THEME_BASES.map(b => (
+          <option key={b} value={b}>
+            {b.charAt(0).toUpperCase() + b.slice(1)}
+          </option>
+        ))}
+      </select>
+
+      {/* Light / Dark mode toggle */}
+      <div
+        style={{
+          display: "flex",
+          border: "1px solid #30363d",
+          borderRadius: 6,
+          overflow: "hidden",
+        }}
+      >
+        {(["light", "dark"] as ThemeMode[]).map(m => (
+          <button
+            key={m}
+            onClick={() => onMode(m)}
+            title={`${m} mode`}
+            style={{
+              padding: "4px 10px",
+              fontSize: 11,
+              fontFamily: "inherit",
+              border: "none",
+              cursor: "pointer",
+              fontWeight: mode === m ? 700 : 400,
+              background: mode === m ? "#30363d" : "#161b22",
+              color: mode === m ? "#e6edf3" : "#768390",
+              transition: "background 0.12s",
+            }}
+          >
+            {m === "light" ? "☀" : "☾"} {m}
+          </button>
+        ))}
+      </div>
+
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* Export SVG — lossless, any size */}
+      <ToolbarBtn onClick={onExportSvg} title="Export as SVG (lossless, any size)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <polyline points="16 18 22 12 16 6" />
+          <polyline points="8 6 2 12 8 18" />
+        </svg>
+        Export SVG
+      </ToolbarBtn>
+
+      {/* Download PNG */}
+      <ToolbarBtn onClick={onDownload} title="Download diagram as PNG" accent>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        Download PNG
+      </ToolbarBtn>
+    </div>
+  );
+}
 
 // ── ErrorPanel ────────────────────────────────────────────────────────────────
 
@@ -89,17 +374,15 @@ function ErrorPanel({ errors }: { errors: { line: number; text: string }[] }) {
         <div key={i} style={{
           padding: "5px 12px",
           fontSize: 11,
-          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+          fontFamily: "inherit",
           color: "#ffa198",
           borderBottom: "1px solid #2d1111",
           display: "flex",
           gap: 10,
           alignItems: "baseline",
         }}>
-          <span style={{ color: "#f85149", minWidth: 32, fontWeight: 600 }}>
-            L{e.line}
-          </span>
-          <span style={{ color: "#ffa198", opacity: 0.85 }}>{e.text}</span>
+          <span style={{ color: "#f85149", minWidth: 32, fontWeight: 600 }}>L{e.line}</span>
+          <span style={{ opacity: 0.85 }}>{e.text}</span>
         </div>
       ))}
     </div>
@@ -109,18 +392,31 @@ function ErrorPanel({ errors }: { errors: { line: number; text: string }[] }) {
 // ── Playground ────────────────────────────────────────────────────────────────
 
 export default function AppDemo() {
+  const savedTheme = (() => {
+    try { return localStorage.getItem(THEME_KEY) || "zinc-dark"; } catch { return "zinc-dark"; }
+  })();
+  const [themeBase, setThemeBase] = useState<ThemeBase>(() => {
+    const base = savedTheme.split("-")[0] as ThemeBase;
+    return THEME_BASES.includes(base) ? base : "zinc";
+  });
+  const [mode, setMode] = useState<ThemeMode>(() =>
+    savedTheme.endsWith("-light") ? "light" : "dark"
+  );
+
+  const themeName = `${themeBase}-${mode}` as ThemeName;
+
+  // Persist theme preference
+  useEffect(() => {
+    try { localStorage.setItem(THEME_KEY, themeName); } catch { /* ignore */ }
+  }, [themeName]);
+
   const [code, setCode] = useState<string>(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY) || DEFAULT_CODE;
-    } catch {
-      return DEFAULT_CODE;
-    }
+    try { return localStorage.getItem(STORAGE_KEY) || DEFAULT_CODE; } catch { return DEFAULT_CODE; }
   });
 
   const [ast, setAst] = useState<DiagramAST | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Debounced localStorage save
   const handleChange = useCallback((newCode: string, newAst: DiagramAST | null) => {
     setCode(newCode);
     setAst(newAst);
@@ -130,7 +426,6 @@ export default function AppDemo() {
     }, 500);
   }, []);
 
-  // Sync ast on direct textarea edits (before DiagramProvider re-parses)
   const handleTextareaChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newCode = e.target.value;
     setCode(newCode);
@@ -145,6 +440,9 @@ export default function AppDemo() {
   }, []);
 
   const errors = ast?.errors ?? [];
+
+  // Right panel bg tracks the diagram theme's --c-bg
+  const rightBg = (THEMES[themeName] as Record<string, string>)["--c-bg"] ?? "#0d1117";
 
   return (
     <div style={{
@@ -199,14 +497,8 @@ export default function AppDemo() {
           }}>LIVE</span>
         </div>
 
-        {/* Textarea wrapper — flex:1 so it fills remaining height; overflow hidden clips to leave room for error panel */}
-        <div style={{
-          flex: 1,
-          position: "relative",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-        }}>
+        {/* Textarea wrapper */}
+        <div style={{ flex: 1, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <textarea
             value={code}
             onChange={handleTextareaChange}
@@ -218,54 +510,60 @@ export default function AppDemo() {
               color: "#cdd9e5",
               border: "none",
               outline: "none",
-              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+              fontFamily: "inherit",
               fontSize: 12,
               lineHeight: 1.8,
               padding: "14px 16px",
               overflowY: "auto",
               boxSizing: "border-box",
-              // Reserve bottom space for error panel
               paddingBottom: errors.length > 0 ? 210 : 14,
             }}
           />
-
-          {/* Error panel — absolute inside this wrapper, sticks to its bottom */}
           <ErrorPanel errors={errors} />
         </div>
       </div>
 
-      {/* ── Right Panel: Diagram Playground ────────────────────────────── */}
+      {/* ── Right Panel: Toolbar + Diagram ─────────────────────────────── */}
       <div style={{
         flex: 1,
         height: "100%",
-        position: "relative",
-        background: "#0d1117",
+        display: "flex",
+        flexDirection: "column",
         overflow: "hidden",
       }}>
-        <DiagramProvider
-          code={code}
-          onChange={handleChange}
-          theme={"zinc-dark" as any}
-        >
-          <ZoomPanContainer>
-            <SequenceDiagram
-              enableHoverLayer={true}
-              enableDragLayer={true}
-            />
-          </ZoomPanContainer>
+        <Toolbar
+          themeBase={themeBase}
+          mode={mode}
+          onThemeBase={setThemeBase}
+          onMode={setMode}
+          onDownload={() => downloadAsPng(themeName)}
+          onExportSvg={() => downloadAsSvg(themeName)}
+        />
 
-          {/* Context menus */}
-          <ParticipantMenuBar />
-          <MessageMenuBar />
-          <AltMenuBar />
-          <GroupMenuBar />
-          <LoopMenuBar />
-          <DividerMenuBar />
-          <NoteMenuBar />
+        {/* Diagram area */}
+        <div style={{ flex: 1, position: "relative", background: rightBg, overflow: "hidden", transition: "background 0.2s" }}>
+          <DiagramProvider
+            code={code}
+            onChange={handleChange}
+            theme={themeName as any}
+          >
+            <ZoomPanContainer>
+              <SequenceDiagram
+                enableHoverLayer={true}
+                enableDragLayer={true}
+              />
+            </ZoomPanContainer>
 
-          {/* Insert toolbar + drag */}
-          <DiagramActions />
-        </DiagramProvider>
+            <ParticipantMenuBar />
+            <MessageMenuBar />
+            <AltMenuBar />
+            <GroupMenuBar />
+            <LoopMenuBar />
+            <DividerMenuBar />
+            <NoteMenuBar />
+            <DiagramActions />
+          </DiagramProvider>
+        </div>
       </div>
     </div>
   );
