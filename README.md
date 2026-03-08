@@ -166,6 +166,43 @@ function App() {
 }
 ```
 
+### 4. Zoom and Pan
+
+You can optionally wrap your `SequenceDiagram` in a `ZoomPanContainer` to enable infinite canvas dragging and scroll-to-zoom capabilities. This is especially useful for large diagrams.
+
+```tsx
+import { useState } from 'react';
+import { 
+  DiagramProvider, 
+  SequenceDiagram,
+  ZoomPanContainer
+} from 'beautiful-plantuml';
+
+function ZoomableApp() {
+  const [code, setCode] = useState(`
+    @startuml
+    participant "Frontend App" as A
+    participant "Backend API" as B
+    participant "Database" as C
+
+    A -> B: Fetch user data
+    B -> C: SQL Query
+    C --> B: Return rows
+    B --> A: JSON Profile
+    @enduml
+  `);
+
+  return (
+    <DiagramProvider code={code} onChange={setCode}>
+      {/* ZoomPanContainer adds zoom/pan while keeping Interactive elements attached correctly */}
+      <ZoomPanContainer>
+        <SequenceDiagram />
+      </ZoomPanContainer>
+    </DiagramProvider>
+  );
+}
+```
+
 ## 🎨 Theming
 
 Beautiful PlantUML comes with 8 built-in themes, each with a `light` and `dark` variant. You can set the theme by passing the `theme` prop to `<DiagramProvider>`.
@@ -220,6 +257,20 @@ Renders the parsed context diagram AST to an interactive SVG.
 |------|------|---------|-------------|
 | `enableHoverLayer` | `boolean` | `true` | Enables the interactive crosshair overlay for adding new rows and lifelines. |
 | `enableDragLayer` | `boolean` | `true` | Enables the drag-to-reroute handles on message arrows. |
+| `stickyParticipants`| `boolean` | `true` | Enables participants to stick to the top of the viewport when panning vertically. |
+
+### `<ZoomPanContainer>`
+
+An optional wrapper component that provides infinite canvas dragging and scroll-to-zoom capabilities.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `initialZoom` | `number` | `1` | The initial zoom level. |
+| `minZoom` | `number` | `0.1` | The minimum allowed zoom level. |
+| `maxZoom` | `number` | `5` | The maximum allowed zoom level. |
+| `zoomStep` | `number` | `0.1` | How much the zoom changes per scroll. |
+| `wheelZoomSpeed` | `number` | `0.001` | The sensitivity of the scroll wheel. |
+| `centerOnLoad` | `boolean` | `false` | Centers the diagram upon initial load. |
 
 ### `<DiagramActions>`
 
