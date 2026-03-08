@@ -235,8 +235,6 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
       return {
         node: (
           <g key={`alt-${y}`} className="alt-block">
-            {/* Background fill — bottommost */}
-            <rect x={bx1} y={y} width={bw} height={totalH} fill={C.altBg} stroke="none" rx={3} />
             {/* Border stroke — painted before inner content so notes render on top */}
             <rect x={bx1} y={y} width={bw} height={totalH} fill="none"
               stroke={isSelected ? "#fff" : C.altBorder} strokeWidth={isSelected ? 2 : 1.5} rx={3} className="alt-border" />
@@ -255,8 +253,6 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
       return {
         node: (
           <g key={`grp-${y}`} className="group-block">
-            {/* Fill then stroke before inner nodes so notes paint on top of border */}
-            <rect x={bx1} y={y} width={bw} height={totalH} fill={C.groupBg} stroke="none" rx={3} />
             <rect x={bx1} y={y} width={bw} height={totalH} fill="none"
               stroke={isSelected ? "#fff" : C.groupBorder} strokeWidth={isSelected ? 2 : 1.5} rx={3} />
             <BlockHeader x={bx1} y={y} w={bw} keyword="group" condition={s.label}
@@ -277,8 +273,6 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
       return {
         node: (
           <g key={`loop-${y}`} className="loop-block">
-            {/* Fill then stroke before inner nodes so notes paint on top of border */}
-            <rect x={bx1} y={y} width={bw} height={totalH} fill={C.loopBg} stroke="none" rx={3} />
             <rect x={bx1} y={y} width={bw} height={totalH} fill="none"
               stroke={isSelected ? "#fff" : C.loopBorder} strokeWidth={isSelected ? 2 : 1.5} rx={3} />
             <BlockHeader x={bx1} y={y} w={bw} keyword="loop" condition={s.label}
@@ -378,8 +372,10 @@ function drawBoxBands(
 
     const elems: React.ReactNode[] = [
       <rect key={`box-bg-${depth}-${bi}`} x={lx} y={y1} width={bw} height={y2 - y1}
-        fill={`rgba(${rgb},0.18)`} stroke={`rgba(${rgb},0.70)`}
+        fill={C.bg} stroke={C.border}
         strokeWidth={1.5} rx={4} className="box-band" />,
+      <rect key={`box-color-${depth}-${bi}`} x={lx} y={y1} width={bw} height={y2 - y1}
+        fill={`rgba(${rgb},0.30)`} stroke="none" rx={4} />,
     ];
     if (box.title) {
       // Clip title to box width with SVG clipPath isn't easy; instead just render it
@@ -388,7 +384,7 @@ function drawBoxBands(
         <text key={`box-title-${depth}-${bi}`}
           x={lx + bw / 2} y={y1 + 15}
           textAnchor="middle" fontSize={11} fontWeight="bold"
-          fill={`rgba(${rgb},0.95)`} className="box-title">{box.title}</text>
+          fill={C.text} className="box-title">{box.title}</text>
       );
     }
     const childY1 = y1 + (box.title ? BOX_TITLE_H : 4);
@@ -663,10 +659,9 @@ export function SequenceDiagram({ enableHoverLayer = true, enableDragLayer = tru
         const id = clickable.getAttribute('data-id');
         if (id) {
           setSelectedNodeId(id);
-          const rect = clickable.getBoundingClientRect();
           setClickPosition({
-            x: rect.left + rect.width / 2,
-            y: rect.top
+            x: e.clientX,
+            y: e.clientY,
           });
           return;
         }
