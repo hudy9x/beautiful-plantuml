@@ -395,7 +395,7 @@ function drawBoxBands(
 }
 
 // ── Main SequenceDiagram component ────────────────────────────────────────────
-export function SequenceDiagram({ enableHoverLayer = true, enableDragLayer = true }: { enableHoverLayer?: boolean; enableDragLayer?: boolean } = {}) {
+export function SequenceDiagram({ enableHoverLayer = true, enableDragLayer = true, stickyParticipants = true }: { enableHoverLayer?: boolean; enableDragLayer?: boolean; stickyParticipants?: boolean } = {}) {
   const { ast } = useDiagram();
   if (!ast) return null;
   const { participants, statements, boxes, declMap, title } = ast;
@@ -572,6 +572,33 @@ export function SequenceDiagram({ enableHoverLayer = true, enableDragLayer = tru
   const hAddBtnGroupRef = useRef<SVGGElement>(null);      // horizontal + button (statement insert)
   const lastInsertIndexRef = useRef<number>(-1);
   const lastHoverAfterIdRef = useRef<string | null>(null);
+  const participantsHeaderRef = useRef<SVGGElement>(null); // sticky header participants
+
+  // ── Sticky top participants via RAF ───────────────────────────────────────
+  // Reads zoomPanRef.current each frame — zero React re-renders.
+  useEffect(() => {
+    if (!stickyParticipants || !zoomPan) return;
+    let rafId: number;
+    let lastY = 0;
+    function tick() {
+      rafId = requestAnimationFrame(tick);
+      const g = participantsHeaderRef.current;
+      if (!g) return;
+      const { pan, zoom } = zoomPan!.current;
+      // Visible SVG top = -pan.y / zoom
+      const visibleTopSvg = -pan.y / zoom;
+      // extraOffset: clear the + button circle (r=12) with 4px gap above + below = 28px total
+      const extraOffset = (4 + 12 + 4) / zoom;
+      const originalTop = headerPartCY - PART_H / 2;
+      const stickyY = Math.max(0, visibleTopSvg - originalTop + extraOffset);
+      if (Math.abs(stickyY - lastY) > 0.1) {
+        lastY = stickyY;
+        g.setAttribute("transform", stickyY > 0 ? `translate(0, ${stickyY})` : "");
+      }
+    }
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [stickyParticipants, zoomPan, headerPartCY]);
 
   const [popover, setPopover] = useState<{ x: number, y: number, insertIdx: number } | null>(null);
   const [hStatementPopover, setHStatementPopover] = useState<{ x: number, y: number, afterId: string | null } | null>(null);
@@ -612,7 +639,7 @@ export function SequenceDiagram({ enableHoverLayer = true, enableDragLayer = tru
       const { pan, zoom, containerWidth } = zoomPan.current;
       // ── Vertical + button: keep at the visible top edge ───────────────
       const visibleTopSvg = -pan.y / zoom;
-      clampedTopY = Math.max(visibleTopSvg + 20 / zoom, 10);
+      clampedTopY = Math.max(visibleTopSvg + 4 / zoom, 4);
 
       // ── Horizontal + button: only push left if actually off-screen ────
       const defaultScreenX = pan.x + (totalW - 20) * zoom;
@@ -735,17 +762,17 @@ export function SequenceDiagram({ enableHoverLayer = true, enableDragLayer = tru
         ))}
       </g>
 
-      {/* Header participant shapes */}
-      <g className="participants-header">
+      {/* Timeline — blocks have opaque background rects that cover lifelines */}
+      <g className="timeline">
+        {timelineNodes}
+      </g>
+
+      {/* Header participant shapes — drawn AFTER timeline so always on top */}
+      <g ref={participantsHeaderRef} className="participants-header">
         {participants.map((p, i) => (
           <ParticipantShape key={p.alias} kind={p.kind} name={p.name}
             cx={shiftedCenters[i]} cy={headerPartCY} stroke={C.accent} stereoType={p.stereoType} fill={p.color} dataId={`participant:${p.alias}`} />
         ))}
-      </g>
-
-      {/* Timeline — blocks have opaque background rects that cover lifelines */}
-      <g className="timeline">
-        {timelineNodes}
       </g>
 
       {/* Footer participant shapes */}
