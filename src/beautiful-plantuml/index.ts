@@ -16,6 +16,14 @@ export type { DiagramContextType } from "./DiagramContext";
 // SequenceDiagram reads ast from DiagramProvider context — no props needed
 export { SequenceDiagram } from "./main";
 
+// ── Zoom/Pan ──────────────────────────────────────────────────────────────────
+// Optional wrapper — SequenceDiagram works without it too
+export { ZoomPanContainer } from "./ZoomPanContainer";
+export type { ZoomPanContainerProps } from "./ZoomPanContainer";
+export { ZoomPanContext, useZoomPan } from "./ZoomPanContext";
+export type { ZoomPanState } from "./ZoomPanContext";
+export type { ZoomConfig } from "./zoomConfig";
+
 // ── Interaction overlays ──────────────────────────────────────────────────────
 // Drag arrowheads/tails between lifelines
 export { ArrowDragLayer as MessageArrowHandler } from "./renderer/ArrowDragLayer";

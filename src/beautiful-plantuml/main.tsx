@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { useDiagram } from "./DiagramContext";
+import { useZoomPan } from "./ZoomPanContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // types/index.ts
@@ -561,6 +562,7 @@ export function SequenceDiagram({ enableHoverLayer = true, enableDragLayer = tru
   }));
 
   const { setSelectedNodeId, setClickPosition } = useDiagram();
+  const zoomPan = useZoomPan(); // null when used without ZoomPanContainer
 
   const svgRef = useRef<SVGSVGElement>(null);
   const hoverLinesRef = useRef<SVGGElement>(null);
@@ -600,7 +602,26 @@ export function SequenceDiagram({ enableHoverLayer = true, enableDragLayer = tru
       insertIdx++;
     }
     lastInsertIndexRef.current = insertIdx;
-    addBtnGroupRef.current.setAttribute("transform", `translate(${nx}, 10)`);
+
+    // Clamp + buttons to the visible viewport.
+    // If inside ZoomPanContainer we can compute the visible SVG area from pan/zoom.
+    // Otherwise fall back to hardcoded positions.
+    let clampedTopY = 10;
+    let clampedRightX = totalW - 20;
+    if (zoomPan) {
+      const { pan, zoom, containerWidth } = zoomPan.current;
+      // ── Vertical + button: keep at the visible top edge ───────────────
+      const visibleTopSvg = -pan.y / zoom;
+      clampedTopY = Math.max(visibleTopSvg + 20 / zoom, 10);
+
+      // ── Horizontal + button: only push left if actually off-screen ────
+      const defaultScreenX = pan.x + (totalW - 20) * zoom;
+      if (defaultScreenX > containerWidth) {
+        clampedRightX = (containerWidth - 20 - pan.x) / zoom;
+      }
+    }
+
+    addBtnGroupRef.current.setAttribute("transform", `translate(${nx}, ${clampedTopY})`);
 
     // Horizontal + button: tracks y, fixed at right edge
     if (hAddBtnGroupRef.current) {
@@ -623,7 +644,7 @@ export function SequenceDiagram({ enableHoverLayer = true, enableDragLayer = tru
         }
       }
       lastHoverAfterIdRef.current = bestId;
-      hAddBtnGroupRef.current.setAttribute("transform", `translate(${totalW - 20}, ${ny})`);
+      hAddBtnGroupRef.current.setAttribute("transform", `translate(${clampedRightX}, ${ny})`);
     }
   };
 

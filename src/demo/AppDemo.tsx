@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ZoomPanContainer } from "../components/ZoomPanContainer";
+import { ZoomPanContainer } from "../beautiful-plantuml";
 import {
   DiagramProvider,
   SequenceDiagram,
