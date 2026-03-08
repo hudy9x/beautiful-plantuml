@@ -216,11 +216,11 @@ export function BlockHeader({ x, y, w, keyword, condition, stroke, headerFill, l
 
       {/* The right vertical separator connecting top to bottom of the header */}
       <line x1={x + tagW} y1={y} x2={x + tagW} y2={y + BLOCK_HDR_H}
-        stroke={stroke} strokeWidth={1.5} />
+        stroke={stroke} strokeWidth={1} />
 
       {/* Outer border for the entire header (drawn last so its stroke remains perfectly intact) */}
       <rect x={x} y={y} width={w} height={BLOCK_HDR_H}
-        fill="none" stroke={stroke} strokeWidth={1.5} rx={3} />
+        fill="none" stroke={stroke} strokeWidth={1} rx={3} />
       <text x={x + tagW / 2} y={y + BLOCK_HDR_H / 2 + 4} textAnchor="middle"
         fontSize={11} fontWeight="bold" fontFamily="monospace"
         fill={labelColor} className="block-keyword">{keyword}</text>
