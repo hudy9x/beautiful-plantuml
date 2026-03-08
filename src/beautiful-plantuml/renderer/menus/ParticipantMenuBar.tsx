@@ -2,7 +2,7 @@
 import { useDiagram } from "../../DiagramContext";
 import { ActionButton } from "../../ActionButton";
 import { MenuPopover } from "./MenuPopover";
-import { ParticipantIcon, EditIcon, DeleteIcon, MoveLeftIcon, MoveRightIcon } from "../../icons";
+import { ParticipantIcon, EditIcon, DeleteIcon, MoveLeftIcon, MoveRightIcon, JumpIcon } from "../../icons";
 
 /**
  * Shows when a participant is selected.
@@ -32,6 +32,7 @@ export function ParticipantMenuBar() {
         }} label="Edit participant" />
         <ActionButton icon={<MoveLeftIcon width={14} height={14} />} onClick={() => actions.moveParticipant(alias, "left")} label="Move Left" />
         <ActionButton icon={<MoveRightIcon width={14} height={14} />} onClick={() => actions.moveParticipant(alias, "right")} label="Move Right" />
+        <ActionButton icon={<JumpIcon width={14} height={14} />} onClick={() => actions.jump(selectedNodeId)} label="Jump to line" />
         <ActionButton icon={<DeleteIcon width={14} height={14} />} onClick={() => actions.deleteParticipant(alias)} label="Delete participant" danger />
       </div>
     </MenuPopover>

@@ -418,6 +418,19 @@ export default function AppDemo() {
 
   const [ast, setAst] = useState<DiagramAST | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Jump to a specific line number in the textarea (1-indexed)
+  const handleJump = useCallback((line: number) => {
+    console.log('line', line)
+    const el = textareaRef.current;
+    if (!el) return;
+    // Compute approximate scroll position: line height is fontSize * lineHeight
+    const lineHeight = 12 * 1.8; // fontSize=12, lineHeight=1.8
+    const targetScrollTop = (line - 1) * lineHeight;
+    el.scrollTo({ top: targetScrollTop, behavior: "smooth" });
+    el.focus();
+  }, []);
 
   const handleChange = useCallback((newCode: string, newAst: DiagramAST | null) => {
     setCode(newCode);
@@ -499,8 +512,8 @@ export default function AppDemo() {
           }}>LIVE</span>
         </div>
 
-        {/* Textarea */}
         <textarea
+          ref={textareaRef}
           value={code}
           onChange={handleTextareaChange}
           spellCheck={false}
@@ -550,6 +563,7 @@ export default function AppDemo() {
             code={code}
             onChange={handleChange}
             theme={themeName as any}
+            onJump={handleJump}
           >
             <ZoomPanContainer>
               <SequenceDiagram

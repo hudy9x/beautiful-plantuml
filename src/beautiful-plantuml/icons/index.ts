@@ -16,4 +16,4 @@ export * from './QueueIcon';
 export * from './EditIcon';
 export * from './DeleteIcon';
 export * from './MoveLeftIcon';
-export * from './MoveRightIcon';
+export * from './MoveRightIcon';export * from './JumpIcon';

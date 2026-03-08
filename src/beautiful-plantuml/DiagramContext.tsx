@@ -31,7 +31,9 @@ export interface DiagramContextType {
     insertStatementAt: (afterId: string | null, kind: string) => void;
     rerouteMessageEndpoint: (id: string, end: "from" | "to", newAlias: string) => void;
     prompt: (title: string, defaultValue: string) => Promise<string | null>;
+    jump: (id: string) => void;
   };
+  onJump?: (line: number) => void;
 }
 
 const DiagramContext = createContext<DiagramContextType | null>(null);
@@ -48,7 +50,7 @@ export function useDiagramActions() {
 
 type ThemeName = keyof typeof THEMES;
 
-export function DiagramProvider({ children, code, updateCode, onChange, theme = "zinc-dark", renderPromptDialog }: { children: React.ReactNode, code: string, updateCode?: (c: string, ast: DiagramAST | null) => void, onChange?: (c: string, ast: DiagramAST | null) => void, theme?: ThemeName | Record<string, string>, renderPromptDialog?: (props: PromptDialogProps) => React.ReactNode }) {
+export function DiagramProvider({ children, code, updateCode, onChange, onJump, theme = "zinc-dark", renderPromptDialog }: { children: React.ReactNode, code: string, updateCode?: (c: string, ast: DiagramAST | null) => void, onChange?: (c: string, ast: DiagramAST | null) => void, onJump?: (line: number) => void, theme?: ThemeName | Record<string, string>, renderPromptDialog?: (props: PromptDialogProps) => React.ReactNode }) {
   const _onChange = onChange ?? updateCode ?? (() => { });
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [clickPosition, setClickPosition] = useState<{ x: number, y: number } | null>(null);
@@ -395,11 +397,39 @@ export function DiagramProvider({ children, code, updateCode, onChange, theme = 
       return new Promise<string | null>((resolve) => {
         setPromptState({ isOpen: true, title, defaultValue, resolve });
       });
-    }
+    },
+
+    jump: (id: string) => {
+      if (!ast || !onJump) return;
+      // Search for the node in statements (any depth)
+      function findLineNo(stmts: StatementNode[]): number | undefined {
+        for (const s of stmts) {
+          if (s.id === id) return (s as any).lineNo;
+          if (s.type === "ALT_BLOCK") {
+            for (const b of s.branches) {
+              const found = findLineNo(b.statements);
+              if (found !== undefined) return found;
+            }
+          } else if (s.type === "GROUP_BLOCK" || s.type === "LOOP_BLOCK") {
+            const found = findLineNo(s.statements);
+            if (found !== undefined) return found;
+          }
+        }
+        return undefined;
+      }
+      // Also check if it's a participant click (id = "participant:alias")
+      if (id.startsWith("participant:")) {
+        // Participants don't have lineNo yet — jump to line 1 as fallback
+        onJump(1);
+        return;
+      }
+      const lineNo = findLineNo(ast.statements);
+      if (lineNo !== undefined) onJump(lineNo);
+    },
   };
 
   return (
-    <DiagramContext.Provider value={{ code, updateCode: _updateCode, ast, selectedNodeId, setSelectedNodeId, clickPosition, setClickPosition, diagramPadding, setDiagramPadding, actions }}>
+    <DiagramContext.Provider value={{ code, updateCode: _updateCode, ast, selectedNodeId, setSelectedNodeId, clickPosition, setClickPosition, diagramPadding, setDiagramPadding, actions, onJump }}>
       {children}
       {promptState && promptState.isOpen && (
         renderPromptDialog ? renderPromptDialog({

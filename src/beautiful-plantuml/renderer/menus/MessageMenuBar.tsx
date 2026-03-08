@@ -3,7 +3,7 @@ import { useDiagram } from "../../DiagramContext";
 import { ActionButton } from "../../ActionButton";
 import { MenuPopover } from "./MenuPopover";
 import type { MessageNode } from "../../types";
-import { MessageIcon, EditIcon, DeleteIcon } from "../../icons";
+import { MessageIcon, EditIcon, DeleteIcon, JumpIcon } from "../../icons";
 
 /**
  * Shows when a message arrow is selected.
@@ -41,6 +41,7 @@ export function MessageMenuBar() {
           const newStr = await actions.prompt("Edit message:", currentStr);
           if (newStr !== null) actions.editNodeLabel(baseId, newStr);
         }} label="Edit Message" />
+        <ActionButton icon={<JumpIcon width={14} height={14} />} onClick={() => actions.jump(baseId)} label="Jump to line" />
         <ActionButton icon={<DeleteIcon width={14} height={14} />} onClick={() => actions.deleteNode(baseId)} label="Delete Message" danger />
       </div>
     </MenuPopover>

@@ -2,6 +2,7 @@
 import { useDiagram } from "../../DiagramContext";
 import { ActionButton } from "../../ActionButton";
 import { MenuPopover } from "./MenuPopover";
+import { DeleteIcon, JumpIcon } from "../../icons";
 
 function findNode(ast: any, id: string): any {
   function search(stmts: any[]): any {
@@ -29,7 +30,10 @@ export function DividerMenuBar() {
 
   return (
     <MenuPopover position={clickPosition} title="Divider Actions" subtitle={<span>{node.label}</span>}>
-      <ActionButton onClick={() => actions.deleteNode(selectedNodeId)} label="Delete divider" danger />
+      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "center" }}>
+        <ActionButton icon={<JumpIcon width={14} height={14} />} onClick={() => actions.jump(selectedNodeId)} label="Jump to line" />
+        <ActionButton icon={<DeleteIcon width={14} height={14} />} onClick={() => actions.deleteNode(selectedNodeId)} label="Delete divider" danger />
+      </div>
     </MenuPopover>
   );
 }

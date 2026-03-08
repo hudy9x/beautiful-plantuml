@@ -3,7 +3,7 @@ import { useDiagram } from "../../DiagramContext";
 import { ActionButton } from "../../ActionButton";
 import { MenuPopover } from "./MenuPopover";
 import { C } from "../../theme";
-import { EditIcon, MessageIcon, DeleteIcon, ElseIcon } from "../../icons";
+import { EditIcon, MessageIcon, DeleteIcon, ElseIcon, JumpIcon } from "../../icons";
 
 function findNode(ast: any, id: string): any {
   function search(stmts: any[]): any {
@@ -55,6 +55,7 @@ export function AltMenuBar() {
         }} label="Edit condition" />
         <ActionButton icon={<MessageIcon width={14} height={14} />} onClick={() => actions.createMessage(baseId, "inside", branchIdx)} label="Create message" />
         <ActionButton icon={<ElseIcon width={14} height={14} />} onClick={() => actions.createElse(baseId, branchIdx)} label="Create else" />
+        <ActionButton icon={<JumpIcon width={14} height={14} />} onClick={() => actions.jump(baseId)} label="Jump to line" />
         {!isAlt ? (
           <ActionButton icon={<DeleteIcon width={14} height={14} />} onClick={() => actions.deleteElse(baseId, branchIdx)} label="Delete else" danger />
         ) : (

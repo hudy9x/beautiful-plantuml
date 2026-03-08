@@ -43,14 +43,14 @@ export function parse(input: string): DiagramAST {
       switch (tok.type) {
         case "BOX": { pos++; stmts.push(parseBox(tok.title, tok.color, ref)); break; }
         case "DECLARATION": { reg(tok.alias, tok.name, tok.kind, tok.stereoType, tok.color); pos++; break; }
-        case "NOTE_INLINE": { pos++; stmts.push({ type: "NOTE", id: genId(), position: tok.position, p1: tok.p1, p2: tok.p2, color: tok.color, lines: [tok.text] }); break; }
-        case "NOTE_START": { pos++; stmts.push({ type: "NOTE", id: genId(), position: tok.position, p1: tok.p1, p2: tok.p2, color: tok.color, lines: collectNoteLines() }); break; }
-        case "NOTE_BARE_INLINE": { pos++; const p1 = ref.current ? (tok.position === "left" ? ref.current.leftAlias : ref.current.rightAlias) : null; stmts.push({ type: "NOTE", id: genId(), position: tok.position, p1, p2: null, color: tok.color, lines: [tok.text] }); break; }
-        case "NOTE_BARE_START": { pos++; const p1 = ref.current ? (tok.position === "left" ? ref.current.leftAlias : ref.current.rightAlias) : null; stmts.push({ type: "NOTE", id: genId(), position: tok.position, p1, p2: null, color: tok.color, lines: collectNoteLines() }); break; }
-        case "DIVIDER": { stmts.push({ type: "DIVIDER", id: genId(), label: tok.label }); pos++; break; }
-        case "ALT": { const c = tok.condition; pos++; stmts.push(parseAlt(c, ref)); break; }
-        case "GROUP": { const l = tok.label; pos++; stmts.push(parseGroup(l, ref)); break; }
-        case "LOOP": { const l = tok.label; pos++; stmts.push(parseLoop(l, ref)); break; }
+        case "NOTE_INLINE": { const ln = (tok as any).lineNo; pos++; stmts.push({ type: "NOTE", id: genId(), lineNo: ln, position: tok.position, p1: tok.p1, p2: tok.p2, color: tok.color, lines: [tok.text] }); break; }
+        case "NOTE_START": { const ln = (tok as any).lineNo; pos++; stmts.push({ type: "NOTE", id: genId(), lineNo: ln, position: tok.position, p1: tok.p1, p2: tok.p2, color: tok.color, lines: collectNoteLines() }); break; }
+        case "NOTE_BARE_INLINE": { const ln = (tok as any).lineNo; pos++; const p1 = ref.current ? (tok.position === "left" ? ref.current.leftAlias : ref.current.rightAlias) : null; stmts.push({ type: "NOTE", id: genId(), lineNo: ln, position: tok.position, p1, p2: null, color: tok.color, lines: [tok.text] }); break; }
+        case "NOTE_BARE_START": { const ln = (tok as any).lineNo; pos++; const p1 = ref.current ? (tok.position === "left" ? ref.current.leftAlias : ref.current.rightAlias) : null; stmts.push({ type: "NOTE", id: genId(), lineNo: ln, position: tok.position, p1, p2: null, color: tok.color, lines: collectNoteLines() }); break; }
+        case "DIVIDER": { stmts.push({ type: "DIVIDER", id: genId(), lineNo: (tok as any).lineNo, label: tok.label }); pos++; break; }
+        case "ALT": { const ln = (tok as any).lineNo; const c = tok.condition; pos++; stmts.push({ ...parseAlt(c, ref), lineNo: ln }); break; }
+        case "GROUP": { const ln = (tok as any).lineNo; const l = tok.label; pos++; stmts.push({ ...parseGroup(l, ref), lineNo: ln }); break; }
+        case "LOOP": { const ln = (tok as any).lineNo; const l = tok.label; pos++; stmts.push({ ...parseLoop(l, ref), lineNo: ln }); break; }
         case "TITLE": { title = tok.text; pos++; break; }
         case "AUTONUMBER": { isAutoNumOn = true; autoNumIdx = 1; pos++; break; }
         case "MESSAGE": {
@@ -58,7 +58,7 @@ export function parse(input: string): DiagramAST {
           const fi = participantOrder.findIndex(p => p.alias === tok.from);
           const ti = participantOrder.findIndex(p => p.alias === tok.to);
           const msg: MessageNode = {
-            type: "MESSAGE", id: genId(), from: tok.from, arrow: tok.arrow, to: tok.to, label: tok.label, idx: msgIdx, autoNum: isAutoNumOn ? autoNumIdx++ : null,
+            type: "MESSAGE", id: genId(), lineNo: (tok as any).lineNo, from: tok.from, arrow: tok.arrow, to: tok.to, label: tok.label, idx: msgIdx, autoNum: isAutoNumOn ? autoNumIdx++ : null,
             leftAlias: fi <= ti ? tok.from : tok.to, rightAlias: fi <= ti ? tok.to : tok.from
           };
           ref.current = msg; stmts.push(msg); pos++; break;

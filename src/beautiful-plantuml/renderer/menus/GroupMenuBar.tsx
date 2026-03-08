@@ -2,7 +2,7 @@
 import { useDiagram } from "../../DiagramContext";
 import { ActionButton } from "../../ActionButton";
 import { MenuPopover } from "./MenuPopover";
-import { EditIcon, MessageIcon, DeleteIcon } from "../../icons";
+import { EditIcon, MessageIcon, DeleteIcon, JumpIcon } from "../../icons";
 
 function findNode(ast: any, id: string): any {
   function search(stmts: any[]): any {
@@ -36,6 +36,7 @@ export function GroupMenuBar() {
           if (newLbl !== null) actions.editNodeLabel(selectedNodeId, newLbl);
         }} label="Edit header" />
         <ActionButton icon={<MessageIcon width={14} height={14} />} onClick={() => actions.createMessage(selectedNodeId, "inside")} label="Create message" />
+        <ActionButton icon={<JumpIcon width={14} height={14} />} onClick={() => actions.jump(selectedNodeId)} label="Jump to line" />
         <ActionButton icon={<DeleteIcon width={14} height={14} />} onClick={() => actions.deleteNode(selectedNodeId)} label="Delete block" danger />
       </div>
     </MenuPopover>
