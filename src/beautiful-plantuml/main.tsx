@@ -395,7 +395,17 @@ function drawBoxBands(
 }
 
 // ── Main SequenceDiagram component ────────────────────────────────────────────
-export function SequenceDiagram({ enableHoverLayer = true, enableDragLayer = true, stickyParticipants = true }: { enableHoverLayer?: boolean; enableDragLayer?: boolean; stickyParticipants?: boolean } = {}) {
+export function SequenceDiagram({
+  enableHoverLayer = true,
+  enableDragLayer = true,
+  stickyParticipants = true,
+  stickyParticipantsBackground = true
+}: {
+  enableHoverLayer?: boolean;
+  enableDragLayer?: boolean;
+  stickyParticipants?: boolean;
+  stickyParticipantsBackground?: boolean;
+} = {}) {
   const { ast } = useDiagram();
   if (!ast) return null;
   const { participants, statements, boxes, declMap, title } = ast;
@@ -593,7 +603,22 @@ export function SequenceDiagram({ enableHoverLayer = true, enableDragLayer = tru
       const stickyY = Math.max(0, visibleTopSvg - originalTop + extraOffset);
       if (Math.abs(stickyY - lastY) > 0.1) {
         lastY = stickyY;
-        g.setAttribute("transform", stickyY > 0 ? `translate(0, ${stickyY})` : "");
+        const transform = stickyY > 0 ? `translate(0, ${stickyY})` : "";
+        g.setAttribute("transform", transform);
+
+        // fade in backdrop if sticky and stretch to top corner
+        if (stickyParticipantsBackground) {
+          const backdrop = g.querySelector(".sticky-backdrop") as SVGForeignObjectElement;
+          if (backdrop) {
+            const localTop = visibleTopSvg - stickyY;
+            const localBottom = headerPartCY + PART_H / 2 + 8;
+            backdrop.setAttribute("y", localTop.toString());
+            backdrop.setAttribute("height", Math.max(0, localBottom - localTop).toString());
+            // fade from 0 to 1 over the first 10px of scroll
+            const opacity = Math.min(1, stickyY / 10);
+            backdrop.style.opacity = opacity.toString();
+          }
+        }
       }
     }
     rafId = requestAnimationFrame(tick);
@@ -769,6 +794,26 @@ export function SequenceDiagram({ enableHoverLayer = true, enableDragLayer = tru
 
       {/* Header participant shapes — drawn AFTER timeline so always on top */}
       <g ref={participantsHeaderRef} className="participants-header">
+        {/* Glassmorphism backdrop — dynamically resized in RAF to cover from viewport top */}
+        {stickyParticipantsBackground && (
+          <foreignObject
+            className="sticky-backdrop"
+            x={0}
+            y={0}
+            width={totalW}
+            height={0}
+            style={{ opacity: 0, pointerEvents: "none" }}
+          >
+            <div style={{
+              width: "100%",
+              height: "100%",
+              backgroundColor: "var(--c-bg)",
+              opacity: 0.8,
+              backdropFilter: "blur(18px)",
+              WebkitBackdropFilter: "blur(18px)"
+            }} />
+          </foreignObject>
+        )}
         {participants.map((p, i) => (
           <ParticipantShape key={p.alias} kind={p.kind} name={p.name}
             cx={shiftedCenters[i]} cy={headerPartCY} stroke={C.accent} stereoType={p.stereoType} fill={p.color} dataId={`participant:${p.alias}`} />

@@ -258,6 +258,7 @@ Renders the parsed context diagram AST to an interactive SVG.
 | `enableHoverLayer` | `boolean` | `true` | Enables the interactive crosshair overlay for adding new rows and lifelines. |
 | `enableDragLayer` | `boolean` | `true` | Enables the drag-to-reroute handles on message arrows. |
 | `stickyParticipants`| `boolean` | `true` | Enables participants to stick to the top of the viewport when panning vertically. |
+| `stickyParticipantsBackground`| `boolean` | `true` | Enables the blurred background behind sticky participants when panning vertically. |
 
 ### `<ZoomPanContainer>`
 

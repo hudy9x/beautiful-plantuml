@@ -12,7 +12,12 @@ export function SvgDefs() {
       <polygon points="0 0,8 3,0 6" fill={color} />
     </marker>
   );
-  return <defs>{mk(MK_SOLID, C.arrow)}{mk(MK_DASHED, C.arrow)}</defs>;
+  return (
+    <defs>
+      {mk(MK_SOLID, C.arrow)}
+      {mk(MK_DASHED, C.arrow)}
+    </defs>
+  );
 }
 
 
