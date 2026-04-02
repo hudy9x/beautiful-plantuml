@@ -8,7 +8,22 @@ export const PARTICIPANT_KINDS: ParticipantKind[] = [
 ];
 
 export interface Participant { alias: string; name: string; kind: ParticipantKind; stereoType?: string; color?: string; }
-export type ArrowType = "->" | "<-" | "-->" | "<--";
+export type ArrowType =
+  // solid right / left (standard)
+  | "->" | "<-"
+  // dashed right / left (standard)
+  | "-->" | "<--"
+  // lost (×) head
+  | "->x" | "x<-"
+  // circle head
+  | "->o" | "o<-"
+  // open / thin arrowhead
+  | "->>" | "<<-"
+  // backslash / forward-slash aliases (same render as -> / <-)
+  | "-\\" | "\\-" | "--\\" | "\\--"
+  | "//--" | "--//"
+  // circle-tail variants
+  | "o\\-" | "-\\o" | "o\\--" | "--\\o";
 export type NotePosition = "left" | "right" | "over" | "across";
 
 export type Token =

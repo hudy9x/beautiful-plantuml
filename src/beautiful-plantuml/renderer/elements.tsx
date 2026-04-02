@@ -1,34 +1,108 @@
 import { useDiagram } from "../DiagramContext";
 import { BLOCK_HDR_H, DIVIDER_H, MSG_ARROW_BOT, MSG_H, MSG_LABEL_OFF, MSG_LINE_H, NOTE_FONT, NOTE_LINE_H, NOTE_PAD_H, NOTE_PAD_V, SELF_LOOP_GAP, SELF_LOOP_H, SELF_LOOP_W } from "../layout/constants";
 import { C } from "../theme";
-import type { MessageNode, NoteNode, DividerNode } from "../types";
+import type { ArrowType, MessageNode, NoteNode, DividerNode } from "../types";
 
-const MK_SOLID = "mk-solid";
-const MK_DASHED = "mk-dashed";
+// ── Marker IDs ────────────────────────────────────────────────────────────────
+const MK_SOLID   = "mk-solid";
+const MK_DASHED  = "mk-dashed";
+const MK_X       = "mk-x";       // ×  lost/destroyed
+const MK_O       = "mk-o";       // ●  filled circle
+const MK_OPEN    = "mk-open";    // ›› open thin arrowhead
+const MK_CIRCLE  = "mk-circle";  // ○  circle tail (start)
 
+// ── SVG defs ──────────────────────────────────────────────────────────────────
 export function SvgDefs() {
-  const mk = (id: string, color: string) => (
+  const solidMk = (id: string, color: string) => (
     <marker id={id} markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
       <polygon points="0 0,8 3,0 6" fill={color} />
     </marker>
   );
   return (
     <defs>
-      {mk(MK_SOLID, C.arrow)}
-      {mk(MK_DASHED, C.arrow)}
+      {solidMk(MK_SOLID,  C.arrow)}
+      {solidMk(MK_DASHED, C.arrow)}
+
+      {/* × lost/destroyed head */}
+      <marker id={MK_X} markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+        <line x1="1" y1="1" x2="9" y2="9" stroke={C.arrow} strokeWidth="2" />
+        <line x1="9" y1="1" x2="1" y2="9" stroke={C.arrow} strokeWidth="2" />
+      </marker>
+
+      {/* ● filled-circle head */}
+      <marker id={MK_O} markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+        <circle cx="5" cy="5" r="4" fill={C.arrow} />
+      </marker>
+
+      {/* open / thin arrowhead (>>) */}
+      <marker id={MK_OPEN} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+        <polyline points="0 0,7 4,0 8" fill="none" stroke={C.arrow} strokeWidth="1.5" />
+      </marker>
+
+      {/* ○ circle tail (placed at start, so refX near 0) */}
+      <marker id={MK_CIRCLE} markerWidth="10" markerHeight="10" refX="2" refY="5" orient="auto">
+        <circle cx="5" cy="5" r="4" fill={C.bg} stroke={C.arrow} strokeWidth="1.5" />
+      </marker>
     </defs>
   );
+}
+
+// ── Arrow property helper ────────────────────────────────────────────────────
+// Given a raw PlantUML arrow string, returns the SVG attributes needed to
+// render the line correctly.
+export interface ArrowRenderProps {
+  dashed: boolean;
+  markerEnd: string | undefined;
+  markerStart: string | undefined;
+}
+
+/** Normalise an arrow string to its canonical direction and style. */
+export function arrowProps(arrow: ArrowType): ArrowRenderProps {
+  // Circle-tail variants  (o\- / o\-- and mirrors)
+  const isCircleTail = arrow === "o\\-" || arrow === "o\\--"
+                    || arrow === "-\\o" || arrow === "--\\o";
+  // Resolve dashed: true when the arrow string contains '--' (two dashes)
+  const dashed = arrow.includes("--");
+
+  if (arrow === "->x" || arrow === "x<-") {
+    return { dashed: false, markerEnd: `url(#${MK_X})`, markerStart: undefined };
+  }
+  if (arrow === "->o" || arrow === "o<-") {
+    return { dashed: false, markerEnd: `url(#${MK_O})`, markerStart: undefined };
+  }
+  if (arrow === "->>") {
+    return { dashed: false, markerEnd: `url(#${MK_OPEN})`, markerStart: undefined };
+  }
+  if (arrow === "<<-") {
+    return { dashed: false, markerEnd: `url(#${MK_OPEN})`, markerStart: undefined };
+  }
+  if (isCircleTail) {
+    return {
+      dashed,
+      markerEnd:   `url(#${dashed ? MK_DASHED : MK_SOLID})`,
+      markerStart: `url(#${MK_CIRCLE})`,
+    };
+  }
+  // All remaining variants (including backslash/slash aliases) render as
+  // a plain solid or dashed arrow with a filled-triangle head.
+  return {
+    dashed,
+    markerEnd: `url(#${dashed ? MK_DASHED : MK_SOLID})`,
+    markerStart: undefined,
+  };
 }
 
 
 
 // ── Message arrow  ─────────────────────────────────────────────────────────────
 // FIX #3: autonumber is prepended as "N. " to the label text — no separate badge.
-export function MessageArrow({ x1, y, x2, dashed, rawLabel, autoNum, idx, node }:
-  { x1: number; y: number; x2: number; dashed: boolean; rawLabel: string; autoNum: number | null; idx: number; node: MessageNode }) {
+export function MessageArrow({ x1, y, x2, rawLabel, autoNum, idx, node }:
+  { x1: number; y: number; x2: number; rawLabel: string; autoNum: number | null; idx: number; node: MessageNode }) {
 
   const { selectedNodeId } = useDiagram();
   const isSelected = selectedNodeId === node.id;
+
+  const ap = arrowProps(node.arrow);
 
   // Build display lines: prepend "N. " to first line if autonumber
   const rawLines = rawLabel ? rawLabel.split("\\n") : [];
@@ -56,8 +130,9 @@ export function MessageArrow({ x1, y, x2, dashed, rawLabel, autoNum, idx, node }
       <line
         x1={x1} y1={arrowY} x2={x2} y2={arrowY}
         stroke={C.arrow} strokeWidth={1.5}
-        strokeDasharray={dashed ? "5,3" : undefined}
-        markerEnd={`url(#${dashed ? MK_DASHED : MK_SOLID})`}
+        strokeDasharray={ap.dashed ? "5,3" : undefined}
+        markerEnd={ap.markerEnd}
+        markerStart={ap.markerStart}
         className="message-arrow" />
     </g>
   );
@@ -82,19 +157,20 @@ export function selfMessageH(lines: string[]): number {
   return labelH + SELF_LOOP_H + 8;
 }
 
-export function SelfArrow({ cx, y, dashed, rawLabel, autoNum, idx, arrowBack, node }:
-  { cx: number; y: number; dashed: boolean; rawLabel: string; autoNum: number | null; idx: number; arrowBack: boolean; node: MessageNode }) {
+export function SelfArrow({ cx, y, rawLabel, autoNum, idx, arrowBack, node }:
+  { cx: number; y: number; rawLabel: string; autoNum: number | null; idx: number; arrowBack: boolean; node: MessageNode }) {
 
   const { selectedNodeId } = useDiagram();
   const isSelected = selectedNodeId === node.id;
+
+  const ap = arrowProps(node.arrow);
 
   const rawLines = rawLabel ? rawLabel.split("\\n") : [];
   const lines = [...rawLines];
   if (autoNum !== null && lines.length === 0) lines.push(`${autoNum}.`);
   else if (autoNum !== null) lines[0] = `${autoNum}. ${lines[0]}`;
 
-  const dash = dashed ? "5,3" : undefined;
-  const mk = dashed ? MK_DASHED : MK_SOLID;
+  const dash = ap.dashed ? "5,3" : undefined;
 
   const labelX = cx + SELF_LOOP_W + 8;
   const labelH = lines.length > 0 ? MSG_LABEL_OFF + lines.length * MSG_LINE_H + SELF_LOOP_GAP : MSG_LABEL_OFF;
@@ -119,7 +195,8 @@ export function SelfArrow({ cx, y, dashed, rawLabel, autoNum, idx, arrowBack, no
       {/* top horizontal segment: lifeline → right */}
       <line x1={cx} y1={loopTop} x2={loopRight} y2={loopTop}
         stroke={C.arrow} strokeWidth={1.5} strokeDasharray={dash}
-        markerEnd={!arrowBack ? `url(#${mk})` : undefined}
+        markerEnd={!arrowBack ? ap.markerEnd : undefined}
+        markerStart={!arrowBack ? ap.markerStart : undefined}
         className="message-arrow" />
       {/* right vertical segment */}
       <line x1={loopRight} y1={loopTop} x2={loopRight} y2={loopBot}
@@ -128,7 +205,8 @@ export function SelfArrow({ cx, y, dashed, rawLabel, autoNum, idx, arrowBack, no
       {/* bottom horizontal segment: right → lifeline */}
       <line x1={loopRight} y1={loopBot} x2={cx} y2={loopBot}
         stroke={C.arrow} strokeWidth={1.5} strokeDasharray={dash}
-        markerEnd={arrowBack ? `url(#${mk})` : undefined}
+        markerEnd={arrowBack ? ap.markerEnd : undefined}
+        markerStart={arrowBack ? ap.markerStart : undefined}
         className="message-arrow" />
     </g>
   );

@@ -117,11 +117,12 @@ export function DiagramProvider({ children, code, updateCode, onChange, onJump, 
         for (const s of stmts) {
           if (s.id === id) {
             if (s.type === "MESSAGE") {
-              const msgM = newLabel.match(/^(\S+)\s*(->|<-|-->|<--)\s*(\S+)\s*:\s*(.+)$/);
+              const ARROW_PAT = String.raw`o\\--|--\\o|//--|--//|--\\|\\--|-->|<--|->x|x<-|->o|o<-|->>|<<-|o\\-|-\\o|-\\|\\-|->|<-`;
+              const msgM = newLabel.match(new RegExp(`^(\\S+)\\s*(${ARROW_PAT})\\s*(\\S+)\\s*:\\s*(.+)$`));
               if (msgM) {
                 s.from = msgM[1]; s.arrow = msgM[2] as any; s.to = msgM[3]; s.label = msgM[4].trim();
               } else {
-                const msgNoLabel = newLabel.match(/^(\S+)\s*(->|<-|-->|<--)\s*(\S+)\s*$/);
+                const msgNoLabel = newLabel.match(new RegExp(`^(\\S+)\\s*(${ARROW_PAT})\\s*(\\S+)\\s*$`));
                 if (msgNoLabel) {
                   s.from = msgNoLabel[1]; s.arrow = msgNoLabel[2] as any; s.to = msgNoLabel[3]; s.label = "";
                 } else {

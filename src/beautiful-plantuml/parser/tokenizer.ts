@@ -53,9 +53,31 @@ export function tokenizeLine(line: string): Token | null {
   const grpM = t.match(/^group\s+(.+)$/); if (grpM) return { type: "GROUP", label: grpM[1].trim() };
   const loopM = t.match(/^loop\s+(.+)$/); if (loopM) return { type: "LOOP", label: loopM[1].trim() };
 
-  const msgM = t.match(/^(\S+)\s*(->|<-|-->|<--)\s*(\S+)\s*:\s*(.+)$/);
+  // Arrow alternation — longest/most-specific first so the regex engine picks the right token.
+  // Backslashes in PlantUML arrows: in the source text each \ is a single character.
+  // In the JS regex literal each \ must be doubled → \\, and inside a character class it
+  // needs \\\\. We build the alternation as a named-group-free non-capturing group.
+  //
+  // Supported arrows (both directions):
+  //  o\\-- / --\\o   circle-tail dashed
+  //  //--  / --//   slash-alias dashed  (same render as -->)
+  //  --\\  / \\--   backslash-alias dashed
+  //  -->   / <--    standard dashed
+  //  ->x   / x<-   lost/destroyed head
+  //  ->o   / o<-   circle head
+  //  ->>   / <<-   open thin head
+  //  o\\-  / -\\o  circle-tail solid
+  //  -\\   / \\-   backslash-alias solid (same render as ->)
+  //  ->    / <-    standard solid
+
+  // String.raw avoids JS escape processing: String.raw`o\\--` is literally "o\\--"
+  // which as a regex pattern means: o + one literal \ + two dashes → matches "o\--" in input.
+  // Arrow alternation, longest/most-specific first so greedy match picks the right token.
+  /* eslint-disable no-useless-escape */
+  const ARROW_PAT = String.raw`o\\--|--\\o|//--|--//|--\\|\\--|-->|<--|->x|x<-|->o|o<-|->>|<<-|o\\-|-\\o|-\\|\\-|->|<-`;
+  const msgM = t.match(new RegExp(`^(\\S+)\\s*(${ARROW_PAT})\\s*(\\S+)\\s*:\\s*(.+)$`));
   if (msgM) return { type: "MESSAGE", from: msgM[1], arrow: msgM[2] as ArrowType, to: msgM[3], label: msgM[4].trim() };
-  const msgNoLabel = t.match(/^(\S+)\s*(->|<-|-->|<--)\s*(\S+)\s*$/);
+  const msgNoLabel = t.match(new RegExp(`^(\\S+)\\s*(${ARROW_PAT})\\s*(\\S+)\\s*$`));
   if (msgNoLabel) return { type: "MESSAGE", from: msgNoLabel[1], arrow: msgNoLabel[2] as ArrowType, to: msgNoLabel[3], label: "" };
 
   return { type: "TEXT_LINE", text: t };

@@ -124,7 +124,9 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
   switch (s.type) {
 
     case "MESSAGE": {
-      const isBack = s.arrow.startsWith("<");
+      // Left-pointing arrows: the line is drawn from `to` → `from` in SVG coords
+      const isBack = s.arrow.startsWith("<") || s.arrow.startsWith("x<-") ||
+                    s.arrow === "--\\o" || s.arrow === "--//" || s.arrow === "\\--" || s.arrow === "--\\";
       const fromX = aliasToX[s.from] ?? 0;
       const toX = aliasToX[s.to] ?? 0;
       const isSelf = s.from === s.to;
@@ -138,7 +140,6 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
         return {
           node: <SelfArrow key={`msg-${s.idx}`}
             cx={fromX} y={y}
-            dashed={s.arrow.includes("--")}
             rawLabel={s.label} autoNum={s.autoNum} idx={s.idx}
             arrowBack={true} node={s} />,
           h,
@@ -152,7 +153,6 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
       return {
         node: <MessageArrow key={`msg-${s.idx}`}
           x1={x1} y={y} x2={x2}
-          dashed={s.arrow.includes("--")}
           rawLabel={s.label} autoNum={s.autoNum} idx={s.idx} node={s} />,
         h,
       };
