@@ -110,7 +110,6 @@ export function MessageArrow({ x1, y, x2, rawLabel, autoNum, idx, node }:
   if (autoNum !== null && lines.length === 0) lines.push(`${autoNum}.`);
   else if (autoNum !== null) lines[0] = `${autoNum}. ${lines[0]}`;
 
-  const mid = (x1 + x2) / 2;
   const nExtra = Math.max(0, lines.length - 1);
   const rowH = MSG_H + nExtra * MSG_LINE_H;
   const arrowY = y + rowH - MSG_ARROW_BOT;
@@ -123,8 +122,8 @@ export function MessageArrow({ x1, y, x2, rawLabel, autoNum, idx, node }:
 
       {lines.map((l, i) => l ? (
         <text key={i}
-          x={mid} y={y + MSG_LABEL_OFF + i * MSG_LINE_H}
-          textAnchor="middle" fontSize={11} fill={C.text}
+          x={Math.min(x1, x2) + 10} y={y + MSG_LABEL_OFF + i * MSG_LINE_H}
+          textAnchor="start" fontSize={11} fill={C.text}
           className="message-label">{l}</text>
       ) : null)}
       <line
@@ -172,7 +171,7 @@ export function SelfArrow({ cx, y, rawLabel, autoNum, idx, arrowBack, node }:
 
   const dash = ap.dashed ? "5,3" : undefined;
 
-  const labelX = cx + SELF_LOOP_W + 8;
+  const labelX = cx + 10;
   const labelH = lines.length > 0 ? MSG_LABEL_OFF + lines.length * MSG_LINE_H + SELF_LOOP_GAP : MSG_LABEL_OFF;
   const loopTop = y + labelH;
   const loopBot = loopTop + SELF_LOOP_H;
@@ -280,7 +279,9 @@ export function BlockHeader({ x, y, w, keyword, condition, stroke, headerFill, l
     stroke: string; headerFill: string; labelColor: string;
     nodeId?: string;
   }) {
-  const tagW = keyword.length * 7.5 + 16;
+  const kwW = keyword.length * 7.5;
+  const condW = condition ? condition.length * 7.5 + 8 : 0;
+  const tagW = kwW + condW + 16;
   return (
     <g className={`block-header block-header-${keyword}`} data-id={nodeId} style={nodeId ? { cursor: "pointer" } : undefined}>
       {/* Solid background covers lifeline under header */}
@@ -304,12 +305,14 @@ export function BlockHeader({ x, y, w, keyword, condition, stroke, headerFill, l
       {/* Outer border for the entire header (drawn last so its stroke remains perfectly intact) */}
       <rect x={x} y={y} width={w} height={BLOCK_HDR_H}
         fill="none" stroke={stroke} strokeWidth={1} rx={3} />
-      <text x={x + tagW / 2} y={y + BLOCK_HDR_H / 2 + 4} textAnchor="middle"
+      <text x={x + 8} y={y + BLOCK_HDR_H / 2 + 4} textAnchor="start"
         fontSize={11} fontWeight="bold" fontFamily="monospace"
         fill={labelColor} className="block-keyword">{keyword}</text>
-      <text x={x + tagW + 8} y={y + BLOCK_HDR_H / 2 + 4}
-        fontSize={11} fill={labelColor} opacity={0.85}
-        className="block-condition">{condition}</text>
+      {condition && (
+        <text x={x + 8 + kwW + 6} y={y + BLOCK_HDR_H / 2 + 4}
+          fontSize={11} fill={labelColor} opacity={0.85}
+          className="block-condition">{condition}</text>
+      )}
     </g>
   );
 }

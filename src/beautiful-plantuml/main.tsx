@@ -81,6 +81,21 @@ function getBlockBounds(s: StatementNode, aliasToX: Record<string, number>, diag
       if (st.type === "MESSAGE") {
         if (aliasToX[st.from] !== undefined) update(aliasToX[st.from]);
         if (aliasToX[st.to] !== undefined) update(aliasToX[st.to]);
+        
+        // Ensure block expands to wrap long message labels
+        const labelW = st.label ? st.label.length * 6.5 : 0;
+        if (st.from === st.to && aliasToX[st.from] !== undefined) {
+          const cx = aliasToX[st.from];
+          update(cx + 36);               // SELF_LOOP_W is 36
+          update(cx + 10 + labelW);      // Left-aligned self arrow label
+        } else if (st.from !== st.to && st.label) {
+          const fx = aliasToX[st.from] ?? 0;
+          const tx = aliasToX[st.to] ?? 0;
+          const midX = (fx + tx) / 2;
+          update(midX - labelW / 2 - 8); // Text is centered
+          update(midX + labelW / 2 + 8);
+        }
+
       } else if (st.type === "NOTE") {
         if (st.p1 && aliasToX[st.p1] !== undefined) update(aliasToX[st.p1]);
         if (st.p2 && aliasToX[st.p2] !== undefined) update(aliasToX[st.p2]);
@@ -118,6 +133,26 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
     const bounds = getBlockBounds(s, aliasToX, diagramX1, diagramX2, depth);
     bx1 = bounds.bx1;
     bx2 = bounds.bx2;
+
+    let maxTitleW = 0;
+    if (s.type === "ALT_BLOCK") {
+      s.branches.forEach((b, bi) => {
+        const kw = bi === 0 ? "alt" : "else";
+        const cond = b.condition ? `[${b.condition}]` : "[else]";
+        const tagW = kw.length * 7.5 + (cond.length * 7.5 + 8) + 16;
+        maxTitleW = Math.max(maxTitleW, tagW);
+      });
+    } else {
+      const kw = s.type === "GROUP_BLOCK" ? "group" : "loop";
+      const cond = s.label;
+      const tagW = kw.length * 7.5 + (cond ? cond.length * 7.5 + 8 : 0) + 16;
+      maxTitleW = tagW;
+    }
+    
+    // Expand the bounding box to fully envelope the title frame if it spills over
+    if (bx2 - bx1 < maxTitleW) {
+      bx2 = bx1 + maxTitleW;
+    }
   }
   const bw = bx2 - bx1;
 
