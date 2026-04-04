@@ -29,7 +29,7 @@ export type NotePosition = "left" | "right" | "over" | "across";
 export type Token =
   | { type: "START" } | { type: "END" }
   | { type: "TITLE"; text: string }
-  | { type: "AUTONUMBER" }
+  | { type: "AUTONUMBER"; start?: string }
   | { type: "END_NOTE" } | { type: "END_BOX" } | { type: "END_BLOCK" }
   | { type: "ELSE"; condition: string }
   | { type: "ALT"; condition: string }
@@ -45,7 +45,7 @@ export type Token =
   | { type: "NOTE_BARE_INLINE"; position: "left" | "right"; color: string | null; text: string }
   | { type: "NOTE_BARE_START"; position: "left" | "right"; color: string | null };
 
-export interface MessageNode { type: "MESSAGE"; id: string; lineNo?: number; from: string; arrow: ArrowType; to: string; label: string; idx: number; autoNum: number | null; leftAlias: string; rightAlias: string; }
+export interface MessageNode { type: "MESSAGE"; id: string; lineNo?: number; from: string; arrow: ArrowType; to: string; label: string; idx: number; autoNum: number | string | null; leftAlias: string; rightAlias: string; }
 export interface NoteNode { type: "NOTE"; id: string; lineNo?: number; position: NotePosition; p1: string | null; p2: string | null; color: string | null; lines: string[]; }
 export interface DividerNode { type: "DIVIDER"; id: string; lineNo?: number; label: string; }
 export interface AltBranch { condition: string; statements: StatementNode[]; }

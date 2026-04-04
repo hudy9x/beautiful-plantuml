@@ -8,7 +8,7 @@ export function parse(input: string): DiagramAST {
     const t = tokenizeLine(line);
     if (t !== null) tokens.push({ ...t, lineNo: i + 1, raw: line });
   });
-  let pos = 0, msgIdx = 0, autoNumIdx = 1;
+  let pos = 0, msgIdx = 0, autoNumInt = 1, autoNumPrefix = "";
   let isAutoNumOn = false;
   let title: string | null = null;
   const hasAutonumber = tokens.some(t => t.type === "AUTONUMBER");
@@ -52,13 +52,33 @@ export function parse(input: string): DiagramAST {
         case "GROUP": { const ln = (tok as any).lineNo; const l = tok.label; pos++; stmts.push({ ...parseGroup(l, ref), lineNo: ln }); break; }
         case "LOOP": { const ln = (tok as any).lineNo; const l = tok.label; pos++; stmts.push({ ...parseLoop(l, ref), lineNo: ln }); break; }
         case "TITLE": { title = tok.text; pos++; break; }
-        case "AUTONUMBER": { isAutoNumOn = true; autoNumIdx = 1; pos++; break; }
+        case "AUTONUMBER": { 
+          isAutoNumOn = true; 
+          const startVal = (tok as any).start;
+          if (startVal && startVal.includes(".")) {
+             const parts = startVal.split(".");
+             const last = parts.pop() || "1";
+             autoNumPrefix = parts.length > 0 ? parts.join(".") + "." : "";
+             autoNumInt = parseInt(last, 10) || 1;
+          } else {
+             autoNumPrefix = "";
+             autoNumInt = startVal ? parseInt(startVal, 10) || 1 : 1;
+          }
+          pos++; break; 
+        }
         case "MESSAGE": {
           msgIdx++; ensure(tok.from); ensure(tok.to);
           const fi = participantOrder.findIndex(p => p.alias === tok.from);
           const ti = participantOrder.findIndex(p => p.alias === tok.to);
+          
+          let currentAutoNum: string | number | null = null;
+          if (isAutoNumOn) {
+            currentAutoNum = autoNumPrefix ? `${autoNumPrefix}${autoNumInt}` : autoNumInt;
+            autoNumInt++;
+          }
+          
           const msg: MessageNode = {
-            type: "MESSAGE", id: genId(), lineNo: (tok as any).lineNo, from: tok.from, arrow: tok.arrow, to: tok.to, label: tok.label, idx: msgIdx, autoNum: isAutoNumOn ? autoNumIdx++ : null,
+            type: "MESSAGE", id: genId(), lineNo: (tok as any).lineNo, from: tok.from, arrow: tok.arrow, to: tok.to, label: tok.label, idx: msgIdx, autoNum: currentAutoNum,
             leftAlias: fi <= ti ? tok.from : tok.to, rightAlias: fi <= ti ? tok.to : tok.from
           };
           ref.current = msg; stmts.push(msg); pos++; break;

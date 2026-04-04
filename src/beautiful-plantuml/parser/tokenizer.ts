@@ -5,7 +5,8 @@ export function tokenizeLine(line: string): Token | null {
   if (!t) return null;
   if (t === "@startuml") return { type: "START" };
   if (t === "@enduml") return { type: "END" };
-  if (t === "autonumber") return { type: "AUTONUMBER" };
+  const autoNumM = t.match(/^autonumber(?:\s+(\S+))?.*$/i);
+  if (autoNumM) return { type: "AUTONUMBER", start: autoNumM[1] };
   if (t === "end note") return { type: "END_NOTE" };
   if (t === "end box") return { type: "END_BOX" };
   if (t === "end") return { type: "END_BLOCK" };

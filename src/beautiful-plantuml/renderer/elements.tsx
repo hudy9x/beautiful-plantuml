@@ -97,7 +97,7 @@ export function arrowProps(arrow: ArrowType): ArrowRenderProps {
 // ── Message arrow  ─────────────────────────────────────────────────────────────
 // FIX #3: autonumber is prepended as "N. " to the label text — no separate badge.
 export function MessageArrow({ x1, y, x2, rawLabel, autoNum, idx, node }:
-  { x1: number; y: number; x2: number; rawLabel: string; autoNum: number | null; idx: number; node: MessageNode }) {
+  { x1: number; y: number; x2: number; rawLabel: string; autoNum: number | string | null; idx: number; node: MessageNode }) {
 
   const { selectedNodeId } = useDiagram();
   const isSelected = selectedNodeId === node.id;
@@ -157,7 +157,7 @@ export function selfMessageH(lines: string[]): number {
 }
 
 export function SelfArrow({ cx, y, rawLabel, autoNum, idx, arrowBack, node }:
-  { cx: number; y: number; rawLabel: string; autoNum: number | null; idx: number; arrowBack: boolean; node: MessageNode }) {
+  { cx: number; y: number; rawLabel: string; autoNum: number | string | null; idx: number; arrowBack: boolean; node: MessageNode }) {
 
   const { selectedNodeId } = useDiagram();
   const isSelected = selectedNodeId === node.id;
