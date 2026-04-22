@@ -1,6 +1,6 @@
 {
   "name": "beautiful-plantuml",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "A beautiful, interactive, React-based PlantUML sequence diagram renderer.",
   "homepage": "https://beautiful-plantuml.vercel.app/",
   "author": "hudy9x",
@@ -29,6 +29,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "prepare": "node scripts/publish.js",
     "build": "tsc -b && vite build",
     "build:demo": "vite build --config vite.demo.config.ts",
     "lint": "eslint .",
