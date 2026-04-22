@@ -6,12 +6,18 @@ export const genId = () => Math.random().toString(36).substring(2, 9);
 export function boxDepth(b: BoxDeclNode): number {
   return b.children.length ? 1 + Math.max(...b.children.map(boxDepth)) : 1;
 }
+// Strip PlantUML rich text markers to compute the true character length
+export function stripRichText(text: string): string {
+  if (!text) return "";
+  return text.replace(/<font\s+color=(?:"[^"]+"|[^>\s]+)[^>]*>|<\/font>|\*\*|\/\/|""|--|__|~~/g, "");
+}
+
 // Returns the visual half-width of a participant shape from its center.
 // Used to compute tight box band edges.
 export function shapeHalfW(kind: ParticipantKind, name: string, stereoType?: string): number {
   const lines = name.split("\\n");
   let maxW = 0;
-  for (const l of lines) maxW = Math.max(maxW, l.trim().length * 3.6 + 9);
+  for (const l of lines) maxW = Math.max(maxW, stripRichText(l).trim().length * 3.6 + 9);
   let w = maxW;
   if (stereoType) {
     let stereoW = stereoType.length * 3.6 + 10;

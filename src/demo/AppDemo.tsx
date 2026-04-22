@@ -32,19 +32,22 @@ type ThemeBase = typeof THEME_BASES[number];
 type ThemeMode = "light" | "dark";
 
 const DEFAULT_CODE = `@startuml
-participant "Frontend" as Alice
+participant "Frontend\\n""**App**""" as Alice
 participant "Backend" as Bob
 participant "Database" as db
 
-Alice -> Bob : POST /api/login
+Alice -> Bob : <font color="red">POST</font> /api/login
 Bob -> db : SELECT user WHERE email = ?
 db --> Bob : user record
 alt credentials valid
   Bob --> Alice : 200 OK { token }
-  note right of Bob : Sign JWT here
+  note right of Bob : Sign **JWT** here
   Alice -> Bob : GET /api/profile
   note left of Alice
     Authorization: Bearer <token>
+    --
+    <font color="#3fb950">~~waved~~</font> and __underlined__
+    Also --stroked-- or //italics//
   end note
   Bob --> Alice : 200 OK { profile }
 else invalid password

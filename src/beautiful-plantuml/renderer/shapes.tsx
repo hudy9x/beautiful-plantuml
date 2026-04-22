@@ -1,11 +1,12 @@
 import { C } from "../theme";
 import type { ParticipantKind } from "../types";
-import { resolveBoxRGB } from "../utils";
+import { resolveBoxRGB, stripRichText } from "../utils";
+import { RichText } from "./RichText";
 
 function shapeParticipant(name: string, s: string, bg: string, sIconChar: string, sIconColor: string, sTitle: string) {
   const lines = name.split("\\n").map(l => l.trim());
   let maxW = 0;
-  for (const l of lines) maxW = Math.max(maxW, l.length * 7.2 + 18);
+  for (const l of lines) maxW = Math.max(maxW, stripRichText(l).length * 7.2 + 18);
   let w = maxW;
   let stereoW = sTitle ? sTitle.length * 7.2 + 20 : 0;
   if (sIconChar) stereoW += 20;
@@ -32,7 +33,7 @@ function shapeParticipant(name: string, s: string, bg: string, sIconChar: string
     )}
     <text x={0} y={sTitle ? topY + 32 : topY + 18} textAnchor="middle" fontSize={11} fontWeight="bold"
       fill={s} className="participant-label">
-      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}><RichText text={l} /></tspan>)}
     </text>
   </>;
 }
@@ -46,7 +47,7 @@ function shapeActor(name: string, s: string, bg: string) {
     <line x1={0} y1={-2} x2={9} y2={12} stroke={s} strokeWidth={1.5} className="actor-leg-r" />
     <text x={0} y={28} textAnchor="middle" fontSize={10} fontWeight="bold"
       fill={s} className="participant-label">
-      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}><RichText text={l} /></tspan>)}
     </text>
   </>;
 }
@@ -58,7 +59,7 @@ function shapeBoundary(name: string, s: string, bg: string) {
     <circle cx={2} cy={0} r={12} fill={bg} stroke={s} strokeWidth={1.5} className="boundary-circle" />
     <text x={0} y={30} textAnchor="middle" fontSize={10} fontWeight="bold"
       fill={s} className="participant-label">
-      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}><RichText text={l} /></tspan>)}
     </text>
   </>;
 }
@@ -70,7 +71,7 @@ function shapeControl(name: string, s: string, bg: string) {
     <polygon points="13,-4 17,-12 9,-10" fill={s} className="control-arrow-head" />
     <text x={0} y={30} textAnchor="middle" fontSize={10} fontWeight="bold"
       fill={s} className="participant-label">
-      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}><RichText text={l} /></tspan>)}
     </text>
   </>;
 }
@@ -81,7 +82,7 @@ function shapeEntity(name: string, s: string, bg: string) {
     <line x1={-14} y1={10} x2={14} y2={10} stroke={s} strokeWidth={1.5} className="entity-underline" />
     <text x={0} y={30} textAnchor="middle" fontSize={10} fontWeight="bold"
       fill={s} className="participant-label">
-      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}><RichText text={l} /></tspan>)}
     </text>
   </>;
 }
@@ -93,7 +94,7 @@ function shapeDatabase(name: string, s: string, bg: string) {
     <path d="M-14 10 Q0 16 14 10" stroke={s} strokeWidth={1.5} fill="none" className="database-bottom" />
     <text x={0} y={32} textAnchor="middle" fontSize={10} fontWeight="bold"
       fill={s} className="participant-label">
-      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}><RichText text={l} /></tspan>)}
     </text>
   </>;
 }
@@ -106,7 +107,7 @@ function shapeCollections(name: string, s: string, bg: string) {
     <rect x={-13} y={-8} width={24} height={18} fill={bg} stroke={s} strokeWidth={1.5} rx={1} className="collections-front" />
     <text x={-1} y={22} textAnchor="middle" fontSize={10} fontWeight="bold"
       fill={s} className="participant-label">
-      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}><RichText text={l} /></tspan>)}
     </text>
   </>;
 }
@@ -117,7 +118,7 @@ function shapeQueue(name: string, s: string, bg: string) {
     <ellipse cx={-11} cy={0} rx={7} ry={10} fill={bg} stroke={s} strokeWidth={1.5} className="queue-left-cap" />
     <text x={0} y={26} textAnchor="middle" fontSize={10} fontWeight="bold"
       fill={s} className="participant-label">
-      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}><RichText text={l} /></tspan>)}
     </text>
   </>;
 }

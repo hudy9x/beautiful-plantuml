@@ -18,15 +18,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { BoxDeclNode, Participant, StatementNode } from "../types";
-import { shapeHalfW } from "../utils";
+import { shapeHalfW, stripRichText } from "../utils";
 import { BOX_SHAPE_PAD, CHAR_W, COL_MIN_W, COL_PAD, SELF_LOOP_W } from "./constants";
 
 function estLabelW(label: string, autoNum: string | number | null): number {
   const prefix = autoNum !== null ? `${autoNum}. ` : "";
   const lines = label.split("\\n");
   const first = prefix + lines[0];
-  const longest = lines.slice(1).reduce((a, b) => b.length > a.length ? b : a, first);
-  return longest.length * CHAR_W;
+  const longest = lines.slice(1).reduce((a, b) => stripRichText(b).length > stripRichText(a).length ? b : a, first);
+  return stripRichText(longest).length * CHAR_W;
 }
 
 export function computeColWidths(
@@ -89,7 +89,7 @@ export function computeColWidths(
 
   // Pass 3 — participant shape/name fit
   for (let i = 0; i < N; i++) {
-    const minGap = (participants[i].name.length * 4.0 + 22) * 2;
+    const minGap = (stripRichText(participants[i].name).length * 4.0 + 22) * 2;
     if (i > 0 && gapW[i - 1] < minGap) gapW[i - 1] = minGap;
     if (i < N - 1 && gapW[i] < minGap) gapW[i] = minGap;
   }
@@ -114,7 +114,7 @@ export function computeColWidths(
 
           const internalSum = loIdx < hiIdx ? gapW.slice(loIdx, hiIdx).reduce((a, b) => a + b, 0) : 0;
           const interior = leftHW + internalSum + rightHW + BOX_SHAPE_PAD * 2;
-          const titleW = box.title.length * 7.5 + 24;
+          const titleW = stripRichText(box.title).length * 7.5 + 24;
 
           if (titleW > interior) {
             const deficit = titleW - interior;

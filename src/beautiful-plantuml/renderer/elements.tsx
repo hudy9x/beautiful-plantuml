@@ -2,6 +2,8 @@ import { useDiagram } from "../DiagramContext";
 import { BLOCK_HDR_H, DIVIDER_H, MSG_ARROW_BOT, MSG_H, MSG_LABEL_OFF, MSG_LINE_H, NOTE_FONT, NOTE_LINE_H, NOTE_PAD_H, NOTE_PAD_V, SELF_LOOP_GAP, SELF_LOOP_H, SELF_LOOP_W } from "../layout/constants";
 import { C } from "../theme";
 import type { ArrowType, MessageNode, NoteNode, DividerNode } from "../types";
+import { RichText } from "./RichText";
+import { stripRichText } from "../utils";
 
 // ── Marker IDs ────────────────────────────────────────────────────────────────
 const MK_SOLID   = "mk-solid";
@@ -124,7 +126,7 @@ export function MessageArrow({ x1, y, x2, rawLabel, autoNum, idx, node }:
         <text key={i}
           x={Math.min(x1, x2) + 10} y={y + MSG_LABEL_OFF + i * MSG_LINE_H}
           textAnchor="start" fontSize={11} fill={C.text}
-          className="message-label">{l}</text>
+          className="message-label"><RichText text={l} /></text>
       ) : null)}
       <line
         x1={x1} y1={arrowY} x2={x2} y2={arrowY}
@@ -189,7 +191,7 @@ export function SelfArrow({ cx, y, rawLabel, autoNum, idx, arrowBack, node }:
         <text key={i}
           x={labelX} y={y + MSG_LABEL_OFF + i * MSG_LINE_H}
           textAnchor="start" fontSize={11} fill={C.text}
-          className="message-label">{l}</text>
+          className="message-label"><RichText text={l} /></text>
       ) : null)}
       {/* top horizontal segment: lifeline → right */}
       <line x1={cx} y1={loopTop} x2={loopRight} y2={loopTop}
@@ -224,8 +226,8 @@ export function noteH(lines: string[]): number {
   return Math.max(1, lines.length) * NOTE_LINE_H + NOTE_PAD_V + 4;
 }
 export function noteW(lines: string[]): number {
-  const longest = lines.reduce((a, b) => b.length > a.length ? b : a, "");
-  return Math.max(80, longest.length * 6.6 + NOTE_PAD_H * 2 + 14);
+  const longest = lines.reduce((a, b) => stripRichText(b).length > stripRichText(a).length ? b : a, "");
+  return Math.max(80, stripRichText(longest).length * 6.6 + NOTE_PAD_H * 2 + 14);
 }
 
 export function NoteBoxSvg({ x, y, lines, color, w: wOverride, node }: { x: number; y: number; lines: string[]; color: string | null; w?: number; node: NoteNode }) {
@@ -241,7 +243,7 @@ export function NoteBoxSvg({ x, y, lines, color, w: wOverride, node }: { x: numb
         fill="none" stroke={isSelected ? "#fff" : border} strokeWidth={isSelected ? 2 : 1} opacity={0.6} className="note-fold" />
       {lines.map((l, i) => (
         <text key={i} x={x + NOTE_PAD_H} y={y + NOTE_PAD_V / 2 + NOTE_FONT + i * NOTE_LINE_H}
-          fontSize={NOTE_FONT} fill={text} xmlSpace="preserve" className="note-line">{l || " "}</text>
+          fontSize={NOTE_FONT} fill={text} xmlSpace="preserve" className="note-line"><RichText text={l || " "} /></text>
       ))}
     </g>
   );
@@ -251,7 +253,7 @@ export function NoteBoxSvg({ x, y, lines, color, w: wOverride, node }: { x: numb
 export function DiagramDivider({ x1, y, x2, label, node }: { x1: number; y: number; x2: number; label: string; node: DividerNode }) {
   const { selectedNodeId } = useDiagram();
   const isSelected = selectedNodeId === node.id;
-  const cy = y + DIVIDER_H / 2, tw = label.length * 7.2 + 22, mid = (x1 + x2) / 2;
+  const cy = y + DIVIDER_H / 2, tw = stripRichText(label).length * 7.2 + 22, mid = (x1 + x2) / 2;
   const lx = mid - tw / 2 - 8, rx = mid + tw / 2 + 8;
   return (
     <g className="divider" data-id={node.id} style={{ cursor: "pointer" }}>
@@ -263,7 +265,7 @@ export function DiagramDivider({ x1, y, x2, label, node }: { x1: number; y: numb
       <rect x={mid - tw / 2} y={cy - 11} width={tw} height={22} fill={C.surface}
         stroke={C.dividerLine} strokeWidth={1.5} rx={3} className="divider-box" />
       <text x={mid} y={cy + 5} textAnchor="middle" fontSize={12} fontWeight="bold"
-        fill={C.dividerText} className="divider-label">{label}</text>
+        fill={C.dividerText} className="divider-label"><RichText text={label} /></text>
       <line x1={rx} y1={cy - 2} x2={x2} y2={cy - 2} stroke={C.dividerLine} strokeWidth={1.5} />
       <line x1={rx} y1={cy + 2} x2={x2} y2={cy + 2} stroke={C.dividerLine} strokeWidth={1.5} />
     </g>
