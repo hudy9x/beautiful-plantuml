@@ -56,7 +56,7 @@ else invalid password
 else account locked
   group Lockout handler
     Bob -> db : UPDATE user SET locked = true
-    loop 3 times
+    loop
       Bob -> Alice : Retry-After header
     end
   end
