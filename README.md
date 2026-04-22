@@ -288,14 +288,28 @@ All exported `*MenuBar` components render contextual popovers when their respect
 - `DividerMenuBar`
 - `NoteMenuBar`
 
-## 🏃 Running Locally
+## 🏃 Development & Publishing
+
+### Running Locally
 
 Clone the repo and start the dev server to see the interactive demo:
 
 ```bash
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
+
+### Publishing a New Version
+
+A custom interactive script is provided to streamline releasing a new version. It automatically prompts for the new version, updates `package.json`, and compiles the library (`npm run build`).
+
+You can trigger this flow by running:
+
+```bash
+npm run prepare
+```
+
+Follow the prompts in your terminal to enter the new app version. Once the build is complete, the script will output the final steps (`npm login` and `npm publish`) needed to push your new release to npm.
 
 ## 📄 License
 
