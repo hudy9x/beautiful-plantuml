@@ -27,7 +27,9 @@ export function parse(input: string): DiagramAST {
   function collectNoteLines(): string[] {
     const lines: string[] = [];
     while (pos < tokens.length && tokens[pos].type !== "END_NOTE") {
-      const tok = tokens[pos++]; if (tok.type === "TEXT_LINE") lines.push(tok.text);
+      const tok = tokens[pos++]; 
+      if (tok.type === "TEXT_LINE") lines.push(tok.text);
+      else if (tok.type === "EMPTY_LINE") lines.push("");
     }
     if (pos < tokens.length) pos++;
     return lines;

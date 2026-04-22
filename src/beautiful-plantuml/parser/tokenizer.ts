@@ -2,7 +2,7 @@ import { PARTICIPANT_KINDS, type ArrowType, type NotePosition, type ParticipantK
 
 export function tokenizeLine(line: string): Token | null {
   const t = line.trim();
-  if (!t) return null;
+  if (!t) return { type: "EMPTY_LINE" };
   if (t === "@startuml") return { type: "START" };
   if (t === "@enduml") return { type: "END" };
   const autoNumM = t.match(/^autonumber(?:\s+(\S+))?.*$/i);
@@ -81,5 +81,5 @@ export function tokenizeLine(line: string): Token | null {
   const msgNoLabel = t.match(new RegExp(`^(\\S+)\\s*(${ARROW_PAT})\\s*(\\S+)\\s*$`));
   if (msgNoLabel) return { type: "MESSAGE", from: msgNoLabel[1], arrow: msgNoLabel[2] as ArrowType, to: msgNoLabel[3], label: "" };
 
-  return { type: "TEXT_LINE", text: t };
+  return { type: "TEXT_LINE", text: line.trimEnd() };
 }

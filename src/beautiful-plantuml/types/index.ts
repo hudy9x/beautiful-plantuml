@@ -43,7 +43,8 @@ export type Token =
   | { type: "NOTE_INLINE"; position: NotePosition; p1: string | null; p2: string | null; color: string | null; text: string }
   | { type: "NOTE_START"; position: NotePosition; p1: string | null; p2: string | null; color: string | null }
   | { type: "NOTE_BARE_INLINE"; position: "left" | "right"; color: string | null; text: string }
-  | { type: "NOTE_BARE_START"; position: "left" | "right"; color: string | null };
+  | { type: "NOTE_BARE_START"; position: "left" | "right"; color: string | null }
+  | { type: "EMPTY_LINE" };
 
 export interface MessageNode { type: "MESSAGE"; id: string; lineNo?: number; from: string; arrow: ArrowType; to: string; label: string; idx: number; autoNum: number | string | null; leftAlias: string; rightAlias: string; }
 export interface NoteNode { type: "NOTE"; id: string; lineNo?: number; position: NotePosition; p1: string | null; p2: string | null; color: string | null; lines: string[]; }

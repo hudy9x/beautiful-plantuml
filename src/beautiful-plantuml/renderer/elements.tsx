@@ -241,7 +241,7 @@ export function NoteBoxSvg({ x, y, lines, color, w: wOverride, node }: { x: numb
         fill="none" stroke={isSelected ? "#fff" : border} strokeWidth={isSelected ? 2 : 1} opacity={0.6} className="note-fold" />
       {lines.map((l, i) => (
         <text key={i} x={x + NOTE_PAD_H} y={y + NOTE_PAD_V / 2 + NOTE_FONT + i * NOTE_LINE_H}
-          fontSize={NOTE_FONT} fill={text} className="note-line">{l || " "}</text>
+          fontSize={NOTE_FONT} fill={text} xmlSpace="preserve" className="note-line">{l || " "}</text>
       ))}
     </g>
   );
