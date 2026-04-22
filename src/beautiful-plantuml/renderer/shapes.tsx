@@ -3,11 +3,15 @@ import type { ParticipantKind } from "../types";
 import { resolveBoxRGB } from "../utils";
 
 function shapeParticipant(name: string, s: string, bg: string, sIconChar: string, sIconColor: string, sTitle: string) {
-  let w = name.length * 7.2 + 18;
+  const lines = name.split("\\n").map(l => l.trim());
+  let maxW = 0;
+  for (const l of lines) maxW = Math.max(maxW, l.length * 7.2 + 18);
+  let w = maxW;
   let stereoW = sTitle ? sTitle.length * 7.2 + 20 : 0;
   if (sIconChar) stereoW += 20;
   const tw = Math.max(44, w, stereoW);
-  const h = sTitle ? 44 : 28;
+  const textH = lines.length * 14;
+  const h = sTitle ? textH + 30 : Math.max(28, textH + 14);
   const topY = -h / 2;
 
   return <>
@@ -26,11 +30,14 @@ function shapeParticipant(name: string, s: string, bg: string, sIconChar: string
         </text>
       </g>
     )}
-    <text x={0} y={sTitle ? topY + 32 : 4} textAnchor="middle" fontSize={11} fontWeight="bold"
-      fill={s} className="participant-label">{name}</text>
+    <text x={0} y={sTitle ? topY + 32 : topY + 18} textAnchor="middle" fontSize={11} fontWeight="bold"
+      fill={s} className="participant-label">
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+    </text>
   </>;
 }
 function shapeActor(name: string, s: string, bg: string) {
+  const lines = name.split("\\n").map(l => l.trim());
   return <>
     <circle cx={0} cy={-24} r={7} fill={bg} stroke={s} strokeWidth={1.5} className="actor-head" />
     <line x1={0} y1={-17} x2={0} y2={-2} stroke={s} strokeWidth={1.5} className="actor-body" />
@@ -38,60 +45,80 @@ function shapeActor(name: string, s: string, bg: string) {
     <line x1={0} y1={-2} x2={-9} y2={12} stroke={s} strokeWidth={1.5} className="actor-leg-l" />
     <line x1={0} y1={-2} x2={9} y2={12} stroke={s} strokeWidth={1.5} className="actor-leg-r" />
     <text x={0} y={28} textAnchor="middle" fontSize={10} fontWeight="bold"
-      fill={s} className="participant-label">{name}</text>
+      fill={s} className="participant-label">
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+    </text>
   </>;
 }
 function shapeBoundary(name: string, s: string, bg: string) {
+  const lines = name.split("\\n").map(l => l.trim());
   return <>
     <line x1={-19} y1={-14} x2={-19} y2={14} stroke={s} strokeWidth={2.5} />
     <line x1={-19} y1={0} x2={-10} y2={0} stroke={s} strokeWidth={1.5} />
     <circle cx={2} cy={0} r={12} fill={bg} stroke={s} strokeWidth={1.5} className="boundary-circle" />
     <text x={0} y={30} textAnchor="middle" fontSize={10} fontWeight="bold"
-      fill={s} className="participant-label">{name}</text>
+      fill={s} className="participant-label">
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+    </text>
   </>;
 }
 function shapeControl(name: string, s: string, bg: string) {
+  const lines = name.split("\\n").map(l => l.trim());
   return <>
     <circle cx={0} cy={0} r={14} fill={bg} stroke={s} strokeWidth={1.5} className="control-circle" />
     <path d="M 7 -12 A 12 12 0 0 1 13 -4" stroke={s} strokeWidth={1.5} fill="none" className="control-arrow-arc" />
     <polygon points="13,-4 17,-12 9,-10" fill={s} className="control-arrow-head" />
     <text x={0} y={30} textAnchor="middle" fontSize={10} fontWeight="bold"
-      fill={s} className="participant-label">{name}</text>
+      fill={s} className="participant-label">
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+    </text>
   </>;
 }
 function shapeEntity(name: string, s: string, bg: string) {
+  const lines = name.split("\\n").map(l => l.trim());
   return <>
     <circle cx={0} cy={0} r={14} fill={bg} stroke={s} strokeWidth={1.5} className="entity-circle" />
     <line x1={-14} y1={10} x2={14} y2={10} stroke={s} strokeWidth={1.5} className="entity-underline" />
     <text x={0} y={30} textAnchor="middle" fontSize={10} fontWeight="bold"
-      fill={s} className="participant-label">{name}</text>
+      fill={s} className="participant-label">
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+    </text>
   </>;
 }
 function shapeDatabase(name: string, s: string, bg: string) {
+  const lines = name.split("\\n").map(l => l.trim());
   return <>
     <rect x={-14} y={-12} width={28} height={22} fill={bg} stroke={s} strokeWidth={1.5} rx={2} className="database-body" />
     <ellipse cx={0} cy={-12} rx={14} ry={4} fill={bg} stroke={s} strokeWidth={1.5} className="database-top" />
     <path d="M-14 10 Q0 16 14 10" stroke={s} strokeWidth={1.5} fill="none" className="database-bottom" />
     <text x={0} y={32} textAnchor="middle" fontSize={10} fontWeight="bold"
-      fill={s} className="participant-label">{name}</text>
+      fill={s} className="participant-label">
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+    </text>
   </>;
 }
 function shapeCollections(name: string, s: string, bg: string) {
+  const lines = name.split("\\n").map(l => l.trim());
   const fd = "#1f2937";
   return <>
     <rect x={-7} y={-14} width={24} height={18} fill={fd} stroke={s} strokeWidth={1.2} rx={1} />
     <rect x={-10} y={-11} width={24} height={18} fill={fd} stroke={s} strokeWidth={1.2} rx={1} />
     <rect x={-13} y={-8} width={24} height={18} fill={bg} stroke={s} strokeWidth={1.5} rx={1} className="collections-front" />
     <text x={-1} y={22} textAnchor="middle" fontSize={10} fontWeight="bold"
-      fill={s} className="participant-label">{name}</text>
+      fill={s} className="participant-label">
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+    </text>
   </>;
 }
 function shapeQueue(name: string, s: string, bg: string) {
+  const lines = name.split("\\n").map(l => l.trim());
   return <>
     <rect x={-16} y={-10} width={32} height={20} fill={bg} stroke={s} strokeWidth={1.5} rx={10} className="queue-body" />
     <ellipse cx={-11} cy={0} rx={7} ry={10} fill={bg} stroke={s} strokeWidth={1.5} className="queue-left-cap" />
     <text x={0} y={26} textAnchor="middle" fontSize={10} fontWeight="bold"
-      fill={s} className="participant-label">{name}</text>
+      fill={s} className="participant-label">
+      {lines.map((l, i) => <tspan key={i} x={0} dy={i === 0 ? 0 : "1.2em"}>{l}</tspan>)}
+    </text>
   </>;
 }
 

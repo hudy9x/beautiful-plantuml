@@ -9,7 +9,10 @@ export function boxDepth(b: BoxDeclNode): number {
 // Returns the visual half-width of a participant shape from its center.
 // Used to compute tight box band edges.
 export function shapeHalfW(kind: ParticipantKind, name: string, stereoType?: string): number {
-  let w = name.length * 3.6 + 9;
+  const lines = name.split("\\n");
+  let maxW = 0;
+  for (const l of lines) maxW = Math.max(maxW, l.trim().length * 3.6 + 9);
+  let w = maxW;
   if (stereoType) {
     let stereoW = stereoType.length * 3.6 + 10;
     if (stereoType.match(/^\(([A-Za-z0-9]),/)) stereoW += 10;
