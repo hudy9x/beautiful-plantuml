@@ -44,6 +44,7 @@ export type Token =
   | { type: "NOTE_START"; position: NotePosition; p1: string | null; p2: string | null; color: string | null }
   | { type: "NOTE_BARE_INLINE"; position: "left" | "right"; color: string | null; text: string }
   | { type: "NOTE_BARE_START"; position: "left" | "right"; color: string | null }
+  | { type: "SPACE"; pixels: number }
   | { type: "EMPTY_LINE" };
 
 export interface MessageNode { type: "MESSAGE"; id: string; lineNo?: number; from: string; arrow: ArrowType; to: string; label: string; idx: number; autoNum: number | string | null; leftAlias: string; rightAlias: string; }
@@ -54,5 +55,6 @@ export interface AltBlockNode { type: "ALT_BLOCK"; id: string; lineNo?: number; 
 export interface GroupBlockNode { type: "GROUP_BLOCK"; id: string; lineNo?: number; label: string; statements: StatementNode[]; }
 export interface LoopBlockNode { type: "LOOP_BLOCK"; id: string; lineNo?: number; label: string; statements: StatementNode[]; }
 export interface BoxDeclNode { type: "BOX_DECL"; id: string; title: string | null; color: string | null; directAliases: string[]; children: BoxDeclNode[]; allAliases: string[]; }
-export type StatementNode = MessageNode | NoteNode | DividerNode | AltBlockNode | GroupBlockNode | LoopBlockNode | BoxDeclNode;
+export interface SpaceNode { type: "SPACE"; id: string; lineNo?: number; pixels: number; }
+export type StatementNode = MessageNode | NoteNode | DividerNode | AltBlockNode | GroupBlockNode | LoopBlockNode | BoxDeclNode | SpaceNode;
 export interface DiagramAST { title: string | null; autonumber: boolean; participants: Participant[]; declMap: Record<string, Participant>; statements: StatementNode[]; boxes: BoxDeclNode[]; errors: { line: number; text: string }[]; }

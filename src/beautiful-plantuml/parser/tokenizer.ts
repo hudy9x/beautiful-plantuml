@@ -53,6 +53,10 @@ export function tokenizeLine(line: string): Token | null {
   const elseM = t.match(/^else(?:\s+(.+))?$/); if (elseM) return { type: "ELSE", condition: (elseM[1] ?? "").trim() };
   const grpM = t.match(/^group\s+(.+)$/); if (grpM) return { type: "GROUP", label: grpM[1].trim() };
   const loopM = t.match(/^loop(?:\s+(.+))?$/); if (loopM) return { type: "LOOP", label: (loopM[1] ?? "").trim() };
+  
+  if (t === "|||") return { type: "SPACE", pixels: 45 };
+  const spaceM = t.match(/^\|\|(\d+)\|\|$/);
+  if (spaceM) return { type: "SPACE", pixels: parseInt(spaceM[1], 10) };
 
   // Arrow alternation — longest/most-specific first so the regex engine picks the right token.
   // Backslashes in PlantUML arrows: in the source text each \ is a single character.

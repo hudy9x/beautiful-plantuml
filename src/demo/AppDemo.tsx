@@ -38,7 +38,9 @@ participant "Database" as db
 
 Alice -> Bob : <font color="red">POST</font> /api/login
 Bob -> db : SELECT user WHERE email = ?
+|||
 db --> Bob : user record
+||45||
 alt credentials valid
   Bob --> Alice : 200 OK { token }
   note right of Bob : Sign **JWT** here

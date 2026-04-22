@@ -44,6 +44,7 @@ export function parse(input: string): DiagramAST {
       if (STOP.has(tok.type)) break;
       switch (tok.type) {
         case "BOX": { pos++; stmts.push(parseBox(tok.title, tok.color, ref)); break; }
+        case "SPACE": { stmts.push({ type: "SPACE", id: genId(), lineNo: (tok as any).lineNo, pixels: (tok as any).pixels }); pos++; break; }
         case "DECLARATION": { reg(tok.alias, tok.name, tok.kind, tok.stereoType, tok.color); pos++; break; }
         case "NOTE_INLINE": { const ln = (tok as any).lineNo; pos++; stmts.push({ type: "NOTE", id: genId(), lineNo: ln, position: tok.position, p1: tok.p1, p2: tok.p2, color: tok.color, lines: [tok.text] }); break; }
         case "NOTE_START": { const ln = (tok as any).lineNo; pos++; stmts.push({ type: "NOTE", id: genId(), lineNo: ln, position: tok.position, p1: tok.p1, p2: tok.p2, color: tok.color, lines: collectNoteLines() }); break; }

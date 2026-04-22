@@ -324,6 +324,10 @@ function drawStmt(s: StatementNode, y: number, ctx: DrawCtx, depth: number): { n
       };
     }
 
+    case "SPACE": {
+      return { node: null, h: s.pixels };
+    }
+
     default: return { node: null, h: 0 };
   }
 }
