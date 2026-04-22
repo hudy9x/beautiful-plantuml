@@ -21,7 +21,7 @@ import type { BoxDeclNode, Participant, StatementNode } from "../types";
 import { shapeHalfW } from "../utils";
 import { BOX_SHAPE_PAD, CHAR_W, COL_MIN_W, COL_PAD, SELF_LOOP_W } from "./constants";
 
-function estLabelW(label: string, autoNum: number | null): number {
+function estLabelW(label: string, autoNum: string | number | null): number {
   const prefix = autoNum !== null ? `${autoNum}. ` : "";
   const lines = label.split("\\n");
   const first = prefix + lines[0];

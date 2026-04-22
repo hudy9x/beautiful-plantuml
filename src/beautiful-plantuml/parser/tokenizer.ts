@@ -34,9 +34,9 @@ export function tokenizeLine(line: string): Token | null {
   const nAcrossM = t.match(/^note\s+across\s*(#\S+)?$/i);
   if (nAcrossM) return { type: "NOTE_START", position: "across", p1: null, p2: null, color: nAcrossM[1] ?? null };
 
-  const nOfI = t.match(/^note\s+(left|right)\s+of\s+(\S+)\s*(#\S+)?\s*:\s*(.+)$/i);
+  const nOfI = t.match(/^note\s+(left|right)\s+(?:of\s+)?([^\s#:]+)\s*(#\S+)?\s*:\s*(.+)$/i);
   if (nOfI) return { type: "NOTE_INLINE", position: nOfI[1].toLowerCase() as NotePosition, p1: nOfI[2], p2: null, color: nOfI[3] ?? null, text: nOfI[4].trim() };
-  const nOfM = t.match(/^note\s+(left|right)\s+of\s+(\S+)\s*(#\S+)?$/i);
+  const nOfM = t.match(/^note\s+(left|right)\s+(?:of\s+)?([^\s#:]+)\s*(#\S+)?$/i);
   if (nOfM) return { type: "NOTE_START", position: nOfM[1].toLowerCase() as NotePosition, p1: nOfM[2], p2: null, color: nOfM[3] ?? null };
 
   const nOverI = t.match(/^note\s+over\s+(\S+?)(?:\s*,\s*(\S+))?\s*(#\S+)?\s*:\s*(.+)$/i);
