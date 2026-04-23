@@ -763,7 +763,21 @@ export function SequenceDiagram({
   }, [hStatementPopover]);
 
   useEffect(() => {
+    let mousedownPos: { x: number, y: number } | null = null;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      mousedownPos = { x: e.clientX, y: e.clientY };
+    };
+
     const handleClick = (e: MouseEvent) => {
+      if (mousedownPos) {
+        const dx = e.clientX - mousedownPos.x;
+        const dy = e.clientY - mousedownPos.y;
+        if (Math.sqrt(dx * dx + dy * dy) > 5) {
+          return; // Ignore click if it was a drag
+        }
+      }
+
       const target = e.target as HTMLElement | SVGElement;
       const clickable = target.closest('[data-id]');
 
@@ -786,8 +800,12 @@ export function SequenceDiagram({
       }
     };
 
+    document.addEventListener("mousedown", handleMouseDown);
     document.addEventListener("click", handleClick);
-    return () => document.removeEventListener("click", handleClick);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("click", handleClick);
+    };
   }, [setSelectedNodeId, setClickPosition]);
 
   return (
