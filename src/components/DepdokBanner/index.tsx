@@ -64,7 +64,7 @@ export function DepdokBanner() {
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer",
-          color: "#8b949e",
+          color: "#ffffffff",
           flexShrink: 0,
           zIndex: 31,
           transition: "background 0.12s, color 0.12s",
@@ -72,10 +72,9 @@ export function DepdokBanner() {
         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#30363d"; e.currentTarget.style.color = "#e6edf3"; }}
         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#21262d"; e.currentTarget.style.color = "#8b949e"; }}
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8b949e" strokeWidth="2.5" strokeLinecap="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-x-icon lucide-x">
+          <path d="M18 6 6 18" />
+          <path d="m6 6 12 12" /></svg>
       </button>
 
       {/* App Icon */}
