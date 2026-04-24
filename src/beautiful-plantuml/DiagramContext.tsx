@@ -425,6 +425,7 @@ export function DiagramProvider({ children, code, updateCode, onChange, onJump, 
         return;
       }
       const lineNo = findLineNo(ast.statements);
+      console.log("jump to line No", lineNo);
       if (lineNo !== undefined) onJump(lineNo);
     },
   };

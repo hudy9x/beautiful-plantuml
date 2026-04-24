@@ -273,6 +273,7 @@ function Toolbar({
             key={m}
             onClick={() => onMode(m)}
             style={{
+              borderRadius: 0,
               padding: "4px 10px", fontSize: 10, fontWeight: 700,
               letterSpacing: "0.8px", textTransform: "uppercase",
               border: "none", cursor: "pointer", fontFamily: "inherit",

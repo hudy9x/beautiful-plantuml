@@ -139,7 +139,11 @@ const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(({ value, onChange
       if (!view) return;
       const clamped = Math.max(1, Math.min(line, view.state.doc.lines));
       const pos = view.state.doc.line(clamped).from;
-      view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: "center" }) });
+      view.dispatch({
+        selection: { anchor: pos },
+        effects: EditorView.scrollIntoView(pos, { y: "center" })
+      });
+      view.focus();
     },
   }));
 
